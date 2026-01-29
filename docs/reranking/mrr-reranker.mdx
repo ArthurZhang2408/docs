@@ -1,0 +1,55 @@
+---
+title: MRR Reranker
+sidebarTitle: "MRR Reranker"
+description: Learn how to use the MRR Reranker in LanceDB for hybrid and multivector search.
+icon: "code"
+---
+
+The `MRRReranker` class in LanceDB allows you to rerank search results using the Mean Reciprocal Rank (MRR) algorithm. This reranker is particularly useful when you want to prioritize search results based on their relevance scores.
+
+## Introduction to MRR
+
+Mean Reciprocal Rank (MRR) is a statistical measure used to evaluate the effectiveness of a search algorithm. It calculates the average of the reciprocal ranks of results for a sample of queries. MRR is useful when the primary goal is to have the most relevant result at the top of the search results.
+
+## When to Use MRR vs RRF
+
+While both MRR and Reciprocal Rank Fusion (RRF) are used for reranking, MRR is more suited for scenarios where the absolute rank of the top result is crucial. RRF, on the other hand, is beneficial when combining results from multiple search algorithms.
+
+## Interface
+
+The `MRRReranker` class provides the following parameters:
+
+- `weight_vector`: float, default 0.5
+  - Weight for vector search results (0.0 to 1.0).
+- `weight_fts`: float, default 0.5
+  - Weight for FTS search results (0.0 to 1.0).
+- `return_score`: str, default "relevance"
+  - Options are "relevance" or "all". Determines the type of score to return.
+
+## Supported Query Types
+
+The `MRRReranker` supports the following query types:
+
+- **Hybrid Search**: Combines vector and FTS search results using the MRR algorithm.
+- **Multivector Search**: Reranks results from multiple vector searches.
+
+## Example
+
+Below is an example of how to use the `MRRReranker` in Python:
+
+<CodeGroup>
+```python Python icon="python"
+from lancedb.rerankers import MRRReranker
+
+# Initialize the reranker
+reranker = MRRReranker(weight_vector=0.6, weight_fts=0.4)
+
+# Perform hybrid search
+hybrid_results = reranker.rerank_hybrid(query="example query", vector_results=vector_results, fts_results=fts_results)
+
+# Perform multivector search
+multivector_results = reranker.rerank_multivector(result_sets=[vector_results1, vector_results2])
+```
+</CodeGroup>
+
+Ensure you have the necessary vector and FTS results prepared before using the reranker. The `MRRReranker` provides flexibility in adjusting the weights to suit your specific search requirements.
