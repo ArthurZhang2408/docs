@@ -1,0 +1,28 @@
+---
+title: MRR Reranker
+sidebarTitle: "MRR"
+description: Learn about LanceDB's MRR Reranker for combining and reranking search results from hybrid and multivector searches.
+
+---
+
+import { PyRerankingMRRUsage } from '/snippets/integrations.mdx';
+
+# MRR Reranker
+
+The MRR Reranker uses the Mean Reciprocal Rank algorithm to combine and rerank search results from hybrid and multivector searches. It is particularly useful for scenarios where you want to prioritize results based on their reciprocal rank.
+
+Accepted Arguments
+----------------
+| Argument | Type | Default | Description |
+| --- | --- | --- | --- |
+| `return_score` | str | `"relevance"` | Options are "relevance" or "all". The type of score to return. If "relevance", will return only the `_relevance_score`. If "all", will return all scores from the vector and FTS search along with the relevance score. |
+
+
+## Supported Scores for each query type
+You can specify the type of scores you want the reranker to return. The following are the supported scores for each query type:
+
+### Hybrid Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` | ✅ Supported | Results only have the `_relevance_score` column |
+| `all` | ✅ Supported | Results have vector(`_distance`) and FTS(`score`) along with Hybrid Search score(`_distance`) |
