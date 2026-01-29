@@ -1,0 +1,43 @@
+---
+title: Mean Reciprocal Rank Reranker
+sidebarTitle: "MRR Algorithm"
+description: Learn about the Mean Reciprocal Rank (MRR) algorithm for combining and reranking search results from hybrid and multivector searches.
+
+---
+
+import { PyRerankingMrrUsage } from '/snippets/integrations.mdx';
+
+# Mean Reciprocal Rank Reranker
+
+The Mean Reciprocal Rank (MRR) Reranker is used for combining and reranking search results from hybrid and multivector searches. This reranker evaluates the search scores by leveraging the positions/rank of the documents.
+
+> **Note:** Supported query types – Hybrid and Multivector search.
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyRerankingMrrUsage}
+  </CodeBlock>
+</CodeGroup>
+
+Accepted Arguments
+----------------
+| Argument | Type | Default | Description |
+| --- | --- | --- | --- |
+| `K` | `int` | `60` | A constant used in the MRR formula (default is 60). This constant affects the ranking sensitivity. |
+| `return_score` | str | `"relevance"` | Options are "relevance" or "all". The type of score to return. If "relevance", will return only the `_relevance_score`. If "all", will return all scores from the vector and FTS search along with the relevance score. |
+
+
+## Supported Scores for each query type
+You can specify the type of scores you want the reranker to return. The following are the supported scores for each query type:
+
+### Hybrid Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` | ✅ Supported | Returned rows only have the `_relevance_score` column. |
+| `all` | ✅ Supported | Returned rows have vector(`_distance`) and FTS(`score`) along with Hybrid Search score(`_relevance_score`). |
+
+### Multivector Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` | ✅ Supported | Results only have the `_relevance_score` column. |
+| `all` | ✅ Supported | Results have vector(`_distance`) along with Multivector Search score(`_relevance_score`). |
