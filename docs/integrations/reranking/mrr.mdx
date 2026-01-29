@@ -1,0 +1,45 @@
+---
+title: Mean Reciprocal Rank Reranker
+sidebarTitle: "MRR Algorithm"
+description: Learn about LanceDB's Mean Reciprocal Rank (MRR) reranker for hybrid and multivector search. Understand the MRR algorithm, configuration options, and supported query types.
+
+---
+
+import { PyRerankingMrrUsage } from '/snippets/integrations.mdx';
+
+# Mean Reciprocal Rank Reranker
+
+The Mean Reciprocal Rank (MRR) reranker is used to evaluate and rerank search results based on their reciprocal ranks. This reranker is particularly useful in scenarios where the rank of the first relevant result is of high importance.
+
+> **Note:** Supported query types  Hybrid search and Multivector search.
+
+## Comparison with RRF
+The MRR algorithm differs from the Reciprocal Rank Fusion (RRF) algorithm in that it focuses on the rank of the first relevant result, making it suitable for applications where the primary goal is to retrieve the most relevant result quickly.
+
+## Configuration Options
+| Argument | Type | Default | Description |
+| --- | --- | --- | --- |
+| `weight_vector` | `float` | `0.5` | Weight for vector search results (0.0 to 1.0). |
+| `weight_fts` | `float` | `0.5` | Weight for FTS search results (0.0 to 1.0). |
+| `return_score` | str | `"relevance"` | Options are "relevance" or "all". The type of score to return. If "relevance", returns only the `_relevance_score`. If "all", returns all scores from vector and FTS search along with the relevance score. |
+
+## Supported Scores for each query type
+You can specify the type of scores you want the reranker to return. The following are the supported scores for each query type:
+
+### Hybrid Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` |  Supported | Returned rows only have the `_relevance_score` column. |
+| `all` |  Supported | Returned rows have vector(`_distance`) and FTS(`score`) along with Hybrid Search score(`_relevance_score`). |
+
+### Multivector Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` |  Supported | Returned rows only have the `_relevance_score` column. |
+| `all` |  Supported | Returned rows have vector scores from multiple searches along with `_relevance_score`. |
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyRerankingMrrUsage}
+  </CodeBlock>
+</CodeGroup>
