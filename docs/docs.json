@@ -237,7 +237,8 @@
                   "integrations/reranking/linear_combination",
                   "integrations/reranking/mrr",
                   "integrations/reranking/openai",
-                  "integrations/reranking/rrf",
+                  "integrations/reranking/mrr",
+                  "integrations/reranking/rrf", 
                   "integrations/reranking/voyageai"
                 ]
               },
