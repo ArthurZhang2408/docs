@@ -1,0 +1,33 @@
+---
+title: "Mean Reciprocal Rank Reranker"
+sidebarTitle: "MRR Reranker"
+description: "Documentation for the Mean Reciprocal Rank (MRR) Reranker in LanceDB."
+icon: "/static/assets/icons/mrr-icon.svg"
+---
+
+import { PyMRRUsage } from '/snippets/mrr.mdx';
+
+# Mean Reciprocal Rank Reranker
+
+The `MRRReranker` class implements the Mean Reciprocal Rank (MRR) algorithm to rerank search results based on vector and FTS search scores.
+
+## Parameters
+
+| Parameter    | Type   | Default | Description                                                                 |
+|--------------|--------|---------|-----------------------------------------------------------------------------|
+| weight_vector | float  | 0.5     | Weight for vector search results. Must be between 0.0 and 1.0.              |
+| weight_fts   | float  | 0.5     | Weight for FTS search results. Must be between 0.0 and 1.0. Sum with `weight_vector` must equal 1.0. |
+| return_score | str    | "relevance" | Options are "relevance" or "all". Determines the type of score to return. |
+
+## Usage Example
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+  {PyMRRUsage}
+  </CodeBlock>
+</CodeGroup>
+
+## Supported Score Types
+
+- **Relevance**: Returns only the relevance score.
+- **All**: Returns all scores from vector and FTS searches along with the relevance score.
