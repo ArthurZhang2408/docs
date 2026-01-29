@@ -1,0 +1,37 @@
+---
+title: ColPali
+sidebarTitle: ColPali
+---
+
+import { PyEmbeddingColPaliUsage } from '/snippets/integrations.mdx';
+
+The ColPali embedding function utilizes the ColPali engine for generating multimodal multi-vector embeddings. It supports both text and image inputs, making it suitable for a variety of applications including semantic search and clustering.
+
+Supported models include:
+
+- Metric-AI/ColQwen2.5-3b-multilingual-v1.0
+- vidore/colpali-v1.3
+- vidore/colqwen2-v1.0
+- vidore/colSmol-256M
+
+Supported parameters (to be passed in `create` method) are:
+
+| Parameter | Type | Default Value | Description |
+|---|---|--------|---------|
+| `model_name` | `str` | `"Metric-AI/ColQwen2.5-3b-multilingual-v1.0"` | The name of the model to use. |
+| `device` | `str` | `"auto"` | The device for inference. |
+| `dtype` | `str` | `"bfloat16"` | Data type for model weights. |
+| `pooling_strategy` | `str` | `"hierarchical"` | Strategy for token pooling. |
+| `pooling_func` | `Callable` | `None` | Function for pooling when `pooling_strategy` is "lambda". |
+| `pool_factor` | `int` | `2` | Factor to reduce sequence length. |
+| `quantization_config` | `Optional[BitsAndBytesConfig]` | `None` | Configuration for model quantization. |
+| `batch_size` | `int` | `2` | Batch size for processing inputs. |
+| `offload_folder` | `str` | `None` | Folder for offloading model weights. |
+
+Usage Example:
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingColPaliUsage}
+  </CodeBlock>
+</CodeGroup>
