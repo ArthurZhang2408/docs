@@ -1,0 +1,42 @@
+---
+title: Mean Reciprocal Rank Reranker
+sidebarTitle: "MRR Algorithm"
+description: Learn about the Mean Reciprocal Rank (MRR) reranker for combining and reranking search results from hybrid and multivector searches.
+---
+
+import { PyRerankingMrrUsage } from '/snippets/integrations.mdx';
+
+# Mean Reciprocal Rank Reranker
+
+The Mean Reciprocal Rank (MRR) reranker is used to combine and rerank search results from hybrid and multivector searches. It calculates the average of reciprocal ranks across different search results, providing a robust way to evaluate and improve search relevance.
+
+> **Note:** Supported query types include Hybrid and Multivector searches.
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyRerankingMrrUsage}
+  </CodeBlock>
+</CodeGroup>
+
+## Accepted Arguments
+
+| Argument | Type | Default | Description |
+| --- | --- | --- | --- |
+| `weight_vector` | `float` | `0.5` | Weight for vector search results (0.0 to 1.0). |
+| `weight_fts` | `float` | `0.5` | Weight for FTS search results (0.0 to 1.0). Note: `weight_vector + weight_fts` should equal 1.0. |
+| `return_score` | `str` | `"relevance"` | Options are "relevance" or "all". The type of score to return. If "relevance", will return only the relevance score. If "all", will return all scores from the vector and FTS search along with the relevance score. |
+
+## Supported Scores for each query type
+You can specify the type of scores you want the reranker to return. The following are the supported scores for each query type:
+
+### Hybrid Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` | ✅ Supported | Returned rows only have the `_relevance_score` column. |
+| `all` | ✅ Supported | Returned rows have vector(`_distance`) and FTS(`score`) along with Hybrid Search score(`_relevance_score`). |
+
+### Multivector Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` | ✅ Supported | Returned rows only have the `_relevance_score` column. |
+| `all` | ✅ Supported | Returned rows include all individual vector scores along with the MRR score (`_relevance_score`). |
