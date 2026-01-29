@@ -1,0 +1,48 @@
+---
+title: ColPali
+sidebarTitle: ColPali
+---
+
+import { PyEmbeddingColPaliUsage, PyEmbeddingColPaliMultimodal } from '/snippets/integrations.mdx';
+
+ColPali provides advanced embedding models for multimodal retrieval tasks.
+
+Using ColPali API requires the ColPali package, which can be installed using `pip install colpali`. ColPali embeddings are used to generate embeddings for text and image data, supporting various tasks such as semantic search, clustering, and classification.
+You also need to set the `COLPALI_API_KEY` environment variable to use the ColPali API.
+
+Supported models are:
+
+- colpali-multimodal-1
+- colpali-multimodal-2
+
+<Info>
+**Multimodal Model:** `colpali-multimodal-2` supports text and image inputs. It outputs 512-dimensional embeddings by default, configurable via the `output_dimension` parameter (256, 512, 1024). See the [ColPali multimodal embeddings documentation](https://docs.colpali.com/docs/multimodal-embeddings) for more details.
+</Info>
+
+Supported parameters (to be passed in `create` method) are:
+
+| Parameter | Type | Default Value | Description |
+|---|---|--------|---------|
+| `name` | `str` | `None` | The model ID of the model to use. Supported models: colpali-multimodal-1, colpali-multimodal-2 |
+| `input_type` | `str` | `None` | Type of the input text. Default to None. Other options: query, document. |
+| `truncation` | `bool` | `True` | Whether to truncate the input texts to fit within the context length. |
+| `output_dimension` | `int` | `None` | Output embedding dimension. Only supported by `colpali-multimodal-2`. Valid options: 256, 512 (default), 1024. |
+
+
+Usage Example:
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingColPaliUsage}
+  </CodeBlock>
+</CodeGroup>
+
+### Multimodal Example
+
+The `colpali-multimodal-2` model can embed text alongside images. You can use image URLs, file paths, or PIL Image objects:
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingColPaliMultimodal}
+  </CodeBlock>
+</CodeGroup>
