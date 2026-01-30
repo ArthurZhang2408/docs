@@ -1,0 +1,108 @@
+---
+title: Error Handling in Geneva UDFs
+sidebarTitle: Error handling
+description: Configure retry, skip, and fail behaviors for Geneva UDFs using built-in factory functions, exception matchers, and advanced Tenacity control.
+icon: triangle-exclamation
+---
+
+Geneva UDFs often call external services (LLMs, HTTP APIs, object stores) where transient failures are expected. Geneva provides a few common error-handling patterns so you can choose whether a row should be retried, skipped, or fail the job.
+
+## Factory functions
+
+Use factory functions when you want a standard, “batteries-included” policy.
+
+| Factory | Behavior | Parameters |
+| --- | --- | --- |
+| `retry_transient(...)` | Retry `ConnectionError`, `TimeoutError`, and `OSError` with exponential backoff. | `max_attempts` (default: `3`), `backoff` (default: `"exponential"`) |
+| `retry_all(...)` | Retry any exception with exponential backoff. | `max_attempts` (default: `3`), `backoff` (default: `"exponential"`) |
+| `skip_on_error(...)` | Return `None` for any exception (skip the row). | (none) |
+| `fail_fast(...)` | Fail immediately on any exception. | (none) |
+
+### Example: retry transient failures
+
+```python
+# Pseudocode illustrating intent
+# policy = retry_transient(max_attempts=3)
+# @udf(on_error=policy)
+# def enrich(...):
+#     ...
+```
+
+### Example: skip bad rows
+
+```python
+# Pseudocode illustrating intent
+# @udf(on_error=skip_on_error())
+# def parse_json(text: str) -> dict | None:
+#     ...
+```
+
+## Custom exception handling with matchers
+
+When you need more control than the factory functions, you can define rules that match specific exceptions and choose an action.
+
+| Matcher | What it does | Parameters |
+| --- | --- | --- |
+| `Retry(...)` | Retry when the exception matches. | `max_attempts`, `backoff`, `match` |
+| `Skip(...)` | Skip the row (return `None`) when the exception matches. | `match` |
+| `Fail(...)` | Fail immediately when the exception matches. | `match` |
+
+### Matching strategies
+
+The `match` parameter is used to decide whether a given exception should trigger the rule. Common patterns include:
+
+- Match by exception type (e.g., `TimeoutError`)
+- Match by message content (e.g., substring/regex)
+- Match by custom predicate (e.g., inspect exception attributes)
+
+```python
+# Pseudocode illustrating intent
+# on_error = [
+#   Retry(match=TimeoutError, max_attempts=3, backoff="exponential"),
+#   Skip(match=ValueError),
+#   Fail(match=Exception),
+# ]
+```
+
+<Warning>
+Rules are typically evaluated in order. Make sure a broad matcher (like `Exception`) does not shadow more specific rules.
+</Warning>
+
+## Advanced control with Tenacity
+
+For advanced retry behavior, Geneva integrates with the [Tenacity](https://tenacity.readthedocs.io/) retrying library.
+
+This is useful when you want:
+
+- Jittered exponential backoff
+- Time-based stopping conditions (e.g., stop after N seconds)
+- More complex wait/stop strategies
+
+### Common Tenacity building blocks
+
+- `wait_random_exponential`
+- `stop_after_delay`
+
+```python
+# Pseudocode illustrating intent
+# from tenacity import wait_random_exponential, stop_after_delay
+#
+# on_error = Retry(
+#   match=ConnectionError,
+#   backoff=wait_random_exponential(multiplier=1, max=60),
+#   stop=stop_after_delay(30),
+# )
+```
+
+## Choosing a strategy
+
+| Goal | Recommended approach |
+| --- | --- |
+| Handle flaky networks / rate limits | `retry_transient(...)` or `Retry(...)` with exponential backoff |
+| Keep the job running even with occasional bad rows | `skip_on_error(...)` or `Skip(...)` for known “bad data” exceptions |
+| Ensure correctness and surface errors immediately | `fail_fast(...)` or `Fail(...)` |
+
+## Related
+
+- [Working with UDFs](/geneva/udfs/index)
+- [Blob Types in Geneva UDFs](/geneva/udfs/blobs)
