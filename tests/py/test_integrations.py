@@ -416,6 +416,57 @@ def test_embedding_ollama_usage() -> None:
 def test_embedding_openclip_examples() -> None:
     require_flag("RUN_OPENCLIP_SNIPPETS")
 
+
+def test_embedding_colpali_examples() -> None:
+    require_flag("RUN_COLPALI_SNIPPETS")
+    pytest.importorskip("colpali_engine")
+
+    # --8<-- [start:embedding_colpali_setup]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    import pandas as pd
+    import requests
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, MultiVector
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "colpali-demo"))
+    func = get_registry().get("colpali").create()
+
+    class MediaItems(LanceModel):
+        text: str
+        image_uri: str = func.SourceField()
+        image_bytes: bytes = func.SourceField()
+        image_vectors: MultiVector(func.ndims()) = func.VectorField()
+
+    table = db.create_table("media", schema=MediaItems, mode="overwrite")
+
+    texts = [
+        "a cute cat playing with yarn",
+        "a puppy in a flower field",
+    ]
+
+    uris = [
+        "http://farm1.staticflickr.com/53/167798175_7c7845bbbd_z.jpg",
+        "http://farm1.staticflickr.com/134/332220238_da527d8140_z.jpg",
+    ]
+
+    image_bytes = [requests.get(uri).content for uri in uris]
+
+    table.add(pd.DataFrame({"text": texts, "image_uri": uris, "image_bytes": image_bytes}))
+    # --8<-- [end:embedding_colpali_setup]
+
+    # --8<-- [start:embedding_colpali_text_search]
+    result = (
+        table.search("fluffy companion", vector_column_name="image_vectors")
+        .limit(1)
+        .to_pydantic(MediaItems)[0]
+    )
+    print(result.text)
+    # --8<-- [end:embedding_colpali_text_search]
+
+
     # --8<-- [start:embedding_openclip_setup]
     import tempfile
     from pathlib import Path
