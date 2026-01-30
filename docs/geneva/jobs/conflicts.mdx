@@ -1,0 +1,96 @@
+---
+title: Backfill Conflicts
+sidebarTitle: Conflicts
+description: Learn how Geneva handles conflicts during backfill operations, including safe vs conflicting operations, retry behavior, and recovery steps.
+icon: triangle-exclamation
+---
+
+Backfills are long-running write operations. While a backfill is running, other operations may also try to modify the same table. Geneva is designed to keep your table consistent, but some combinations of operations can conflict.
+
+This page explains what a conflict is, what Geneva does automatically, and what you can do to avoid and recover from conflicts.
+
+## What is a conflict?
+
+A **conflict** occurs when a backfill attempts to commit results based on an older table version, but the table has changed since the backfill started (or since the last successful checkpoint/commit).
+
+In practice, conflicts are most likely when:
+
+- Multiple backfills write to the same table at the same time
+- You run a backfill while also appending/updating/deleting rows
+- You change table schema (add/drop/rename columns) while a backfill is running
+
+## Safe vs conflicting operations
+
+Not all concurrent activity is equally risky. Use the table below as a guide.
+
+|Operation while a backfill is running|Typical outcome|Why it matters|Recommendation|
+|---|---|---|---|
+|Read-only queries (search, filters, scans)|Safe|Reads don’t change table versions|No special action needed|
+|Starting another backfill that writes **different columns**|Usually safe, but can still conflict|Both jobs still need to commit against the latest version|Prefer serializing backfills for critical tables; monitor for retries|
+|Starting another backfill that writes the **same column(s)**|Conflicting|Two writers compete to update the same data|Avoid; run one backfill at a time per target column|
+|Appending new rows|May conflict or cause retries|Backfill commits are versioned; new data changes the base version|If possible, pause ingestion or backfill only a stable snapshot|
+|Updating/deleting existing rows|Likely to conflict|Backfill may be writing results for rows that changed|Avoid during backfill; otherwise expect retries and longer runtimes|
+|Schema changes (add/drop/rename columns, change types)|Often conflicts or fails|Backfill may reference columns that no longer match|Avoid schema changes during backfill; do them before/after|
+
+<Info>
+The “safe vs conflicting” classification is about operational risk, not correctness. Geneva will not silently corrupt your table; conflicts are handled via retries or job failure.
+</Info>
+
+## Automatic retry behavior
+
+When a conflict is detected during a commit, Geneva will typically **retry** the commit against the latest table version.
+
+Retries are helpful, but they have tradeoffs:
+
+- They increase total runtime (work may need to be re-applied)
+- They can amplify load on storage/metadata if conflicts happen frequently
+- They may still fail if the table is being modified continuously
+
+<Warning>
+If you see repeated retries, treat it as a signal that the table is “too hot” for a long-running backfill. Reduce concurrent writers or run the backfill during a quieter window.
+</Warning>
+
+## Recovery steps
+
+If a backfill is slowed down by conflicts or fails due to repeated conflicts, use the following recovery workflow.
+
+### 1) Stop the competing writes
+
+Pick one of these approaches:
+
+- Pause ingestion / streaming writes temporarily
+- Stop or postpone other backfills touching the same table
+- Avoid schema changes until the backfill completes
+
+### 2) Resume or re-run the backfill
+
+Backfills are checkpointed. In many cases, re-running the same backfill will resume from the last successful checkpoint rather than recomputing everything.
+
+### 3) Validate results incrementally
+
+For large tables, validate on a small slice before committing to a full run:
+
+- Limit the scope (for example, run on a subset of fragments)
+- Use filtered backfills to target only rows that need work
+- Use intermediate commits (commit granularity) to make progress visible
+
+## Best practices to avoid conflicts
+
+- **Prefer one writer at a time** for a given table during large backfills.
+- **Separate ingestion and backfill windows** (for example, backfill overnight, ingest during the day).
+- **Backfill one column at a time** when possible, especially for expensive UDFs.
+- **Use filters for incremental work** so you only touch rows that are missing values.
+- **Avoid schema changes mid-backfill**; do schema migrations before starting.
+- **Monitor early**: start with a small run to confirm throughput and stability, then scale up.
+
+## Troubleshooting checklist
+
+Use this checklist when a backfill is unexpectedly slow or repeatedly retrying:
+
+- Are there other jobs writing to the same table?
+- Is ingestion appending rows continuously?
+- Did the schema change after the backfill started?
+- Are you backfilling the same column from multiple places?
+- Can you reduce the scope (filters / fewer fragments) to stabilize the run?
+
+If conflicts persist even after reducing concurrent writes, consider splitting the job into smaller backfills (by filter) and running them sequentially.
