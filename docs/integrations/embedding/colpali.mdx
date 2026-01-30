@@ -1,0 +1,72 @@
+---
+title: ColPali
+sidebarTitle: ColPali
+description: Multi-vector multimodal embeddings for text-to-image retrieval using ColPali models.
+---
+
+import {
+  PyEmbeddingColpaliSetup,
+  PyEmbeddingColpaliTextSearch,
+} from '/snippets/integrations.mdx';
+
+ColPali is a family of multimodal models that produce **multi-vector embeddings** (a list of vectors per input) for retrieval.
+
+This embedding function is registered as `colpali`.
+
+## Installation
+
+To use ColPali embeddings, install the ColPali engine and its dependencies:
+
+```bash
+pip install colpali-engine
+```
+
+## Supported models
+
+The `model_name` determines which ColPali engine/model class is used. The implementation selects the model based on substrings in `model_name`:
+
+- **ColQwen2.5**: model names containing `"colqwen2.5"` (e.g. `"Metric-AI/ColQwen2.5-3b-multilingual-v1.0"`)
+- **ColIdefics3 / ColSmol**: model names containing `"colsmol"` or `"colidefics3"` (e.g. `"vidore/colSmol-256M"`)
+- **ColQwen2**: model names containing `"colqwen"` (e.g. `"vidore/colqwen2-v1.0"`)
+- **ColPali**: model names containing `"colpali"` (e.g. `"vidore/colpali-v1.3"`)
+
+If the model name does not match any of the above, LanceDB raises `ValueError("Unsupported model: ...")`.
+
+## Parameters
+
+| Parameter | Type | Default Value | Description |
+|---|---|---|---|
+| `model_name` | `str` | `"Metric-AI/ColQwen2.5-3b-multilingual-v1.0"` | Hugging Face model name to load. Used to select the underlying ColPali engine/model class. |
+| `device` | `str` | `"auto"` | Device for inference. When set to `"auto"`, LanceDB selects `"cuda"` if available, otherwise `"mps"`, otherwise `"cpu"`. |
+| `dtype` | `str` | `"bfloat16"` | Data type for model weights. If `device == "mps"` and `dtype == "bfloat16"`, LanceDB uses `"float32"` to avoid NaNs. |
+| `use_token_pooling` | `bool` | `True` | **Deprecated.** If set to `False`, LanceDB emits a `DeprecationWarning` and sets `pooling_strategy = None`. |
+| `pooling_strategy` | `Optional[str]` | `"hierarchical"` | Token pooling strategy. Supported values: `"hierarchical"`, `"lambda"`, or `None`. |
+| `pooling_func` | `Optional[Any]` | `None` | Pooling function used when `pooling_strategy == "lambda"`. Required when using `"lambda"`. |
+| `pool_factor` | `int` | `2` | Pooling factor used by hierarchical pooling. |
+| `quantization_config` | `Optional[Any]` | `None` | Quantization configuration. If provided, it must be a `transformers.BitsAndBytesConfig` (otherwise a `ValueError` is raised). |
+| `batch_size` | `int` | `2` | Batch size used when generating embeddings. |
+| `offload_folder` | `Optional[str]` | `None` | Folder to offload model weights when using CPU offloading. |
+
+<Info>
+ColPali produces **multi-vector** outputs. In LanceDB's Pydantic integration, represent these with `MultiVector(func.ndims())`.
+</Info>
+
+## Example
+
+### Setup (ingest images)
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingColpaliSetup}
+  </CodeBlock>
+</CodeGroup>
+
+### Text-to-image search
+
+ColPali currently supports **text queries** only (image-to-image queries are not supported).
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingColpaliTextSearch}
+  </CodeBlock>
+</CodeGroup>

@@ -416,6 +416,54 @@ def test_embedding_ollama_usage() -> None:
 def test_embedding_openclip_examples() -> None:
     require_flag("RUN_OPENCLIP_SNIPPETS")
 
+
+def test_embedding_colpali_examples() -> None:
+    require_flag("RUN_COLPALI_SNIPPETS")
+    pytest.importorskip("colpali_engine")
+
+    # --8<-- [start:embedding_colpali_setup]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    import requests
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, MultiVector
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "colpali-demo"))
+    func = get_registry().get("colpali").create()
+
+    class MediaItems(LanceModel):
+        text: str
+        image_uri: str = func.SourceField()
+        image_bytes: bytes = func.SourceField()
+        image_vectors: MultiVector(func.ndims()) = func.VectorField()
+
+    table = db.create_table("media_items", schema=MediaItems, mode="overwrite")
+
+    uri = "http://farm1.staticflickr.com/53/167798175_7c7845bbbd_z.jpg"
+    image_bytes = requests.get(uri, timeout=10).content
+
+    table.add(
+        [
+            {
+                "text": "a photo of a cat",
+                "image_uri": uri,
+                "image_bytes": image_bytes,
+            }
+        ]
+    )
+    # --8<-- [end:embedding_colpali_setup]
+
+    # --8<-- [start:embedding_colpali_text_search]
+    actual = table.search("cat").limit(1).to_pydantic(MediaItems)[0]
+    print(actual.text)
+    # --8<-- [end:embedding_colpali_text_search]
+
+
+def test_embedding_openclip_examples() -> None:
+    require_flag("RUN_OPENCLIP_SNIPPETS")
+
     # --8<-- [start:embedding_openclip_setup]
     import tempfile
     from pathlib import Path
