@@ -1,0 +1,95 @@
+---
+title: Backfill conflicts
+sidebarTitle: Conflicts
+description: Understand how Geneva detects and recovers from backfill conflicts, which operations are safe, and how to avoid contention.
+icon: triangle-exclamation
+---
+
+## Overview
+
+Backfills update a LanceDB table by writing new column data and committing new table versions. Because tables can also be modified by other writers (other backfills, materialized views, or manual writes), Geneva may encounter **commit conflicts**.
+
+A conflict means the table changed between the time Geneva planned a write and the time it attempted to commit it.
+
+## Safe vs conflicting operations
+
+Whether a backfill can proceed depends on *what changed* in the table while the job was running.
+
+### Generally safe operations
+
+These operations typically do **not** invalidate a backfill plan and are usually safe to run concurrently:
+
+| Operation | Why it’s usually safe | Notes |
+| --- | --- | --- |
+| Appending new rows | Existing fragments/rows being backfilled are unchanged | If your backfill uses a `where` filter, new rows may or may not match and will be picked up on a later run |
+| Reading/querying the table | Readers don’t change table state | — |
+| Running another backfill that targets a *different* output column | Writes don’t overlap | Avoid sharing the same output column or writing derived columns that depend on each other |
+
+### Conflicting operations
+
+These operations commonly cause conflicts and may require the job to retry or be restarted:
+
+| Operation | Why it conflicts | Typical symptom |
+| --- | --- | --- |
+| Updating or deleting rows/fragments being backfilled | The planned input set no longer matches the current table version | Commit fails due to version mismatch |
+| Backfilling the *same* output column from multiple jobs | Two writers attempt to produce the same column data | One job repeatedly retries and makes no progress |
+| Schema changes affecting the output column (rename/drop/type change) | The job’s output no longer matches the table schema | Job fails during write/commit |
+| Compaction/optimization that rewrites fragments while a backfill is writing | Fragment layout changes underneath the job | Increased retries or failure to commit |
+
+<Warning>
+Conflicts are a sign of concurrent writes. If you see repeated retries with little progress, stop one of the writers and let the other complete.
+</Warning>
+
+## Automatic retry behavior
+
+When Geneva detects a conflict, it will typically:
+
+1. **Abort the current commit attempt**
+2. **Refresh table state** (read the latest version)
+3. **Retry the commit**
+
+Retries are intended to resolve *transient* conflicts (for example, a short-lived concurrent writer). If conflicts persist, retries may continue without meaningful progress.
+
+## Recovery steps
+
+Use the steps below to recover safely, depending on what happened.
+
+### 1) Identify the competing writer
+
+Check whether any of the following are running against the same table:
+
+- Another backfill job
+- A materialized view refresh
+- A manual write/update/delete
+- A maintenance operation that rewrites fragments
+
+If possible, pause or stop the competing writer.
+
+### 2) Resume by re-running the backfill
+
+Backfills are checkpointed. In many cases, you can re-run the same backfill after the conflict is resolved and Geneva will reuse existing checkpoints and continue.
+
+### 3) If the schema changed, fix the job definition
+
+If the output column was renamed, dropped, or its type changed:
+
+- Update the UDF/backfill target column to match the current schema
+- Re-run the backfill
+
+### 4) If you changed the input set, consider narrowing the run
+
+If you updated/deleted rows while the job was running, consider re-running with a narrower scope (for example, a smaller subset of fragments or a stricter `where` filter) to validate correctness before scaling back up.
+
+## Best practices to avoid conflicts
+
+- **Avoid concurrent writers** to the same table during long-running backfills.
+- **Don’t run two backfills that write the same output column**.
+- **Prefer append-only ingestion** while a backfill is running.
+- **Schedule maintenance operations** (compaction/optimization) outside backfill windows.
+- **Use incremental backfills** (filters) to reduce the amount of work that needs to be committed at once.
+
+Related:
+
+- [Backfilling](/geneva/jobs/backfilling)
+- [Materialized views](/geneva/jobs/materialized-views)
+- [Distributed Job Performance](/geneva/jobs/performance)
