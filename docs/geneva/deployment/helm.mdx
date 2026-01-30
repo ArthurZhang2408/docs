@@ -1,0 +1,152 @@
+---
+title: Deploy Geneva with Helm
+sidebarTitle: Helm
+description: Deploy Geneva on Kubernetes using Helm, including prerequisites, installation, and configuration.
+icon: ship
+---
+
+<Tip>
+**Feature Engineering is deployed automatically in LanceDB Enteprise**
+
+Feature Engineering is deployed automatically as part of [LanceDB Enterprise](/enterprise/).
+For manual installation in self-managed environments, follow the instructions below.
+</Tip>
+
+## Prerequisites
+
+- A Kubernetes cluster (GKE, EKS, AKS, or self-managed)
+- `kubectl` configured to talk to your cluster
+- Helm v3 installed
+- KubeRay operator installed (Geneva uses Ray for distributed execution)
+- A container registry accessible from your cluster (if you are using a private Geneva image)
+
+## Installation
+
+This page describes a Helm-based installation workflow for Geneva.
+
+At a high level you will:
+
+1. Create a namespace
+2. Install (or verify) the KubeRay operator
+3. Install the Geneva Helm chart
+4. Configure storage and credentials
+5. Validate the deployment
+
+### 1) Create a namespace
+
+```bash
+NAMESPACE=geneva
+kubectl create namespace $NAMESPACE  # skip if it already exists
+```
+
+### 2) Install the KubeRay operator
+
+If you already have KubeRay installed, you can skip this step.
+
+```bash
+helm repo add kuberay https://ray-project.github.io/kuberay-helm/
+helm repo update
+helm install kuberay-operator kuberay/kuberay-operator -n $NAMESPACE
+```
+
+### 3) Install the Geneva chart
+
+<Warning>
+This documentation assumes you have access to a Geneva Helm chart (for example, from LanceDB Enterprise distribution or an internal chart repository).
+If you do not have a chart yet, contact your LanceDB representative.
+</Warning>
+
+Create a `values.yaml` for your environment and install the chart:
+
+```bash
+# Example only: replace <repo>/<chart> and values keys with the ones provided with your chart
+helm repo add geneva <YOUR_HELM_REPO_URL>
+helm repo update
+
+helm upgrade --install geneva <YOUR_HELM_REPO_NAME>/<YOUR_CHART_NAME> \
+  -n $NAMESPACE \
+  -f values.yaml
+```
+
+### 4) Configure storage and credentials
+
+Geneva jobs typically need access to your object store (S3 / GCS / Azure Blob) where your Lance datasets live.
+
+- On **GKE**, prefer Workload Identity (KSA  GSA binding)
+- On **EKS**, prefer IRSA (KSA  IAM role binding)
+
+If you are deploying on GKE or EKS, follow the provider-specific guidance in [Geneva on Kubernetes Deployments](/geneva/deployment/).
+
+### 5) Validate
+
+Check that the Geneva resources are running:
+
+```bash
+kubectl get pods -n $NAMESPACE
+kubectl get svc -n $NAMESPACE
+```
+
+If your chart deploys a Ray cluster, also verify the Ray CRDs exist and that Ray pods are scheduled:
+
+```bash
+kubectl get crd | grep ray
+kubectl get rayclusters.ray.io -n $NAMESPACE
+```
+
+## Configuration guide
+
+Helm charts are configured via `values.yaml`. The exact keys depend on the chart you are using, but the most common categories are:
+
+| Category | What you configure | Notes |
+| --- | --- | --- |
+| Images | Geneva image repository/tag, pull secrets | Use private registry credentials if needed. |
+| Namespace & labels | Namespace, common labels/annotations | Useful for cost allocation and policy. |
+| Service accounts | KSA name, annotations for cloud identity | Required for GKE Workload Identity / EKS IRSA. |
+| Ray / KubeRay | Head + worker group sizing, node selectors, tolerations | Align with your node pools / node groups. |
+| Storage | Bucket/container URIs, mount points, credentials strategy | Prefer identity-based auth over static keys. |
+| Networking | Services, ingress, TLS, port-forwarding options | Depends on how you access Ray dashboard / APIs. |
+| Resources | CPU/memory/GPU requests and limits | Ensure cluster autoscaler can satisfy requests. |
+| Observability | Logs, metrics, dashboards | Integrate with your existing stack. |
+
+### Recommended values to set first
+
+Start by setting the minimum required values for your environment:
+
+1. **Namespace** (if your chart supports overriding it)
+2. **Image** (repository + tag)
+3. **Service account** (and cloud identity annotations)
+4. **Ray head/worker sizing** (CPU/memory and optional GPU workers)
+5. **Node selectors** to ensure head/worker pods land on the right nodes
+
+### Node selectors for Ray pods
+
+Genevas Kubernetes deployment guidance uses the following labels for scheduling Ray pods:
+
+- `geneva.lancedb.com/ray-head`
+- `geneva.lancedb.com/ray-worker-cpu`
+- `geneva.lancedb.com/ray-worker-gpu`
+
+Make sure your cluster nodes are labeled accordingly and that your Helm values (or RayCluster spec) set matching `nodeSelector` values.
+
+## Upgrades and rollback
+
+Upgrade in-place by re-running `helm upgrade` with updated values:
+
+```bash
+helm upgrade geneva <YOUR_HELM_REPO_NAME>/<YOUR_CHART_NAME> -n $NAMESPACE -f values.yaml
+```
+
+If needed, you can roll back to a previous revision:
+
+```bash
+helm history geneva -n $NAMESPACE
+helm rollback geneva <REVISION> -n $NAMESPACE
+```
+
+## Troubleshooting
+
+- If pods are stuck in `Pending`, check node selectors, taints/tolerations, and resource requests.
+- If Ray components fail to start, confirm KubeRay operator is installed and CRDs are present.
+- If jobs fail with permissions errors, verify your service account bindings (GKE Workload Identity / EKS IRSA).
+
+For more, see [Troubleshooting Geneva Deployments](/geneva/deployment/troubleshooting).
