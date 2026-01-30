@@ -586,6 +586,63 @@ def test_embedding_voyageai_multimodal() -> None:
     # --8<-- [end:embedding_voyageai_multimodal]
 
 
+def test_embedding_colpali_usage() -> None:
+    require_flag("RUN_COLPALI_SNIPPETS")
+    pytest.importorskip("colpali_engine")
+
+    # --8<-- [start:embedding_colpali_usage]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    import requests
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, MultiVector
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "colpali-demo"))
+    func = get_registry().get("colpali").create()
+
+    class MediaItems(LanceModel):
+        text: str
+        image_uri: str = func.SourceField()
+        image_bytes: bytes = func.SourceField()
+        image_vectors: MultiVector(func.ndims()) = func.VectorField()
+
+    table = db.create_table("media", schema=MediaItems, mode="overwrite")
+
+    texts = [
+        "a cute cat playing with yarn",
+        "a puppy in a flower field",
+    ]
+
+    uris = [
+        "http://farm1.staticflickr.com/53/167798175_7c7845bbbd_z.jpg",
+        "http://farm1.staticflickr.com/134/332220238_da527d8140_z.jpg",
+    ]
+
+    image_bytes = [requests.get(uri, timeout=10).content for uri in uris]
+
+    table.add(
+        [
+            {
+                "text": text,
+                "image_uri": uri,
+                "image_bytes": img_bytes,
+            }
+            for text, uri, img_bytes in zip(texts, uris, image_bytes)
+        ]
+    )
+
+    # Text-to-image search (query is text; vector column is multivector)
+    results = (
+        table.search("fluffy companion", vector_column_name="image_vectors")
+        .limit(1)
+        .to_pydantic(MediaItems)
+    )
+    print(results[0].text)
+    # --8<-- [end:embedding_colpali_usage]
+
+
 # Reranking integrations
 
 
