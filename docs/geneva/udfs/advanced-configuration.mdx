@@ -1,0 +1,53 @@
+---
+title: Advanced configuration
+sidebarTitle: Advanced configuration
+description: Advanced Geneva configuration options via GENEVA_ environment variables.
+icon: sliders
+---
+
+Geneva exposes a set of advanced configuration options through `GENEVA_` environment variables.
+These are primarily intended for operators running Geneva in production (Ray clusters, Kubernetes, CI), and for debugging reliability issues.
+
+<Warning>
+These settings can materially change job behavior (e.g., skipping admission checks or changing retry behavior). Only change them if you understand the operational impact.
+</Warning>
+
+## Admission control
+
+Admission control runs pre-flight checks before a job starts, to verify that the cluster is in a healthy enough state to run the workload.
+
+| Environment variable | Default | Description |
+|---|---:|---|
+| `GENEVA_ADMISSION__CHECK` | `true` | Enable admission control checks. Set to false to skip all checks. |
+| `GENEVA_ADMISSION__STRICT` | `true` | If true, reject the job with ResourcesUnavailableError when resources are insufficient. If false, log a warning but allow the job to proceed. |
+| `GENEVA_ADMISSION__TIMEOUT` | `3.0` | Timeout in seconds for Ray API calls during admission control checks. Prevents hanging when the cluster is in a bad state. |
+
+## Commit and retry configuration
+
+These settings control how Geneva retries commit operations and handles common concurrency issues.
+
+| Environment variable | Default | Description |
+|---|---:|---|
+| `GENEVA_COMMIT_MAX_RETRIES` | `12` | Maximum number of retries for commit operations. With exponential backoff (1s, 2s, 4s, 8s, 16s, then 16s capped), 12 retries gives ~2.5 minutes total wait time before giving up. |
+| `GENEVA_VERSION_CONFLICT_MAX_RETRIES` | `10` | Maximum number of retries for version conflicts during commit. Version conflicts occur when concurrent backfills commit to the same fragments. Prevents infinite loops when concurrent commits keep conflicting. |
+| `GENEVA_WRITER_STALL_IDLE_ROUNDS` | `6` | Number of idle rounds (5s each) before considering a writer stalled during drain. With many concurrent backfills, resource contention can slow writers without them being truly stalled. |
+
+## Lance retry configuration
+
+These settings control retries for Lance I/O operations (e.g., transient storage or network failures).
+
+| Environment variable | Default | Description |
+|---|---:|---|
+| `GENEVA_RETRY_LANCE_ATTEMPTS` | `7` | Maximum number of retry attempts for Lance I/O operations. |
+| `GENEVA_RETRY_LANCE_INITIAL_SECS` | `0.5` | Initial wait time in seconds for exponential backoff when retrying Lance I/O operations. |
+| `GENEVA_RETRY_LANCE_MAX_SECS` | `120.0` | Maximum wait time in seconds for exponential backoff when retrying Lance I/O operations. |
+
+## Other configuration
+
+Miscellaneous operational settings.
+
+| Environment variable | Default | Description |
+|---|---:|---|
+| `GENEVA_RAY_INIT_MAX_RETRIES` | `5` | Maximum number of retry attempts for ray.init() connection failures. Useful when connecting to Ray clusters that may be temporarily unavailable. |
+| `GENEVA_K8S_AUTH_MAX_RETRIES` | `3` | Maximum number of retries for Kubernetes authentication operations. Must be at least 1. |
+| `GENEVA_CONFIG_DIR` | `./.config` | Directory path where Geneva looks for configuration files (.yaml, .json, .toml). Can be an absolute or relative path. |
