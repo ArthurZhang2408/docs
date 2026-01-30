@@ -548,6 +548,81 @@ def test_embedding_voyageai_usage() -> None:
     # --8<-- [end:embedding_voyageai_usage]
 
 
+def test_embedding_voyageai_multimodal_35_text() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_voyageai_multimodal_35_text]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, Vector
+
+    func = get_registry().get("voyageai").create(name="voyage-multimodal-3.5")
+
+    class TextModel(LanceModel):
+        text: str = func.SourceField()
+        vector: Vector(func.ndims()) = func.VectorField()
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "voyageai-mm-35"))
+    tbl = db.create_table("test", schema=TextModel, mode="overwrite")
+    tbl.add([{"text": "hello world"}, {"text": "goodbye world"}])
+    # --8<-- [end:embedding_voyageai_multimodal_35_text]
+
+
+def test_embedding_voyageai_multimodal_35_image_url() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_voyageai_multimodal_35_image_url]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    import pandas as pd
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, Vector
+
+    func = get_registry().get("voyageai").create(name="voyage-multimodal-3.5")
+
+    class Images(LanceModel):
+        label: str
+        image_url: str = func.SourceField()
+        vector: Vector(func.ndims()) = func.VectorField()
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "voyageai-mm-35-images"))
+    tbl = db.create_table("images", schema=Images, mode="overwrite")
+
+    df = pd.DataFrame(
+        {
+            "label": ["cat", "dog"],
+            "image_url": [
+                "http://farm1.staticflickr.com/53/167798175_7c7845bbbd_z.jpg",
+                "http://farm5.staticflickr.com/4092/5017326486_1f46057f5f_z.jpg",
+            ],
+        }
+    )
+    tbl.add(df)
+
+    # Search with text against image embeddings
+    result = tbl.search("a dog").limit(1).to_pandas()
+    print(result["label"][0])
+    # --8<-- [end:embedding_voyageai_multimodal_35_image_url]
+
+
+def test_embedding_voyageai_multimodal_35_flexible_dimensions() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_voyageai_multimodal_35_flexible_dimensions]
+    from lancedb.embeddings import get_registry
+
+    func = get_registry().get("voyageai").create(
+        name="voyage-multimodal-3.5", output_dimension=512
+    )
+    assert func.ndims() == 512
+    # --8<-- [end:embedding_voyageai_multimodal_35_flexible_dimensions]
+
+
 # Reranking integrations
 
 

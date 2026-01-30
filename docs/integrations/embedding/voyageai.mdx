@@ -3,7 +3,12 @@ title: VoyageAI
 sidebarTitle: VoyageAI
 ---
 
-import { PyEmbeddingVoyageaiUsage } from '/snippets/integrations.mdx';
+import {
+  PyEmbeddingVoyageaiUsage,
+  PyEmbeddingVoyageaiMultimodal35Text,
+  PyEmbeddingVoyageaiMultimodal35ImageUrl,
+  PyEmbeddingVoyageaiMultimodal35FlexibleDimensions,
+} from '/snippets/integrations.mdx';
 
 Voyage AI provides cutting-edge embedding and rerankers.
 
@@ -18,6 +23,8 @@ Supported models are:
 - voyage-3.5-lite
 - voyage-3
 - voyage-3-lite
+- voyage-multimodal-3
+- voyage-multimodal-3.5
 - voyage-finance-2
 - voyage-multilingual-2
 - voyage-law-2
@@ -28,9 +35,10 @@ Supported parameters (to be passed in `create` method) are:
 
 | Parameter | Type | Default Value | Description |
 |---|---|--------|---------|
-| `name` | `str` | `None` | The model ID of the model to use. Supported base models for Text Embeddings: voyage-3, voyage-3-lite, voyage-finance-2, voyage-multilingual-2, voyage-law-2, voyage-code-2 |
+| `name` | `str` | `None` | The model ID of the model to use. Supported models: voyage-context-3, voyage-3.5, voyage-3.5-lite, voyage-3, voyage-3-lite, voyage-multimodal-3, voyage-multimodal-3.5, voyage-finance-2, voyage-multilingual-2, voyage-law-2, voyage-code-2 |
 | `input_type` | `str` | `None` | Type of the input text. Default to None. Other options: query, document. |
 | `truncation` | `bool` | `True` | Whether to truncate the input texts to fit within the context length. |
+| `output_dimension` | `int` | `None` | Output dimension for models that support flexible dimensions. Currently only `voyage-multimodal-3.5` supports this. Valid options: 256, 512, 1024 (default), 2048. |
 
 
 Usage Example:
@@ -38,5 +46,21 @@ Usage Example:
 <CodeGroup>
   <CodeBlock filename="Python" language="Python" icon="python">
     {PyEmbeddingVoyageaiUsage}
+  </CodeBlock>
+</CodeGroup>
+
+Multimodal (voyage-multimodal-3.5) Examples:
+
+<CodeGroup>
+  <CodeBlock filename="Text" language="Python" icon="python">
+    {PyEmbeddingVoyageaiMultimodal35Text}
+  </CodeBlock>
+
+  <CodeBlock filename="Image URL" language="Python" icon="python">
+    {PyEmbeddingVoyageaiMultimodal35ImageUrl}
+  </CodeBlock>
+
+  <CodeBlock filename="Flexible dimensions" language="Python" icon="python">
+    {PyEmbeddingVoyageaiMultimodal35FlexibleDimensions}
   </CodeBlock>
 </CodeGroup>
