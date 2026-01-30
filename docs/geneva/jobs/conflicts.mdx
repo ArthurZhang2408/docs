@@ -1,0 +1,76 @@
+---
+title: Backfill conflicts
+sidebarTitle: Conflicts
+description: Understand how Geneva handles version conflicts during backfill jobs, which operations are safe, and how to recover.
+icon: triangle-exclamation
+---
+
+Backfill jobs run as a sequence of read/compute/write/commit steps against a LanceDB table. If the table changes while a job is running, Geneva may detect a **version conflict** when it tries to commit its results.
+
+This page explains which operations are safe during a `backfill`, which operations commonly cause conflicts, how Geneva retries automatically (bounded by `GENEVA_VERSION_CONFLICT_MAX_RETRIES`), and what to do when a job cannot recover automatically.
+
+## What is a backfill conflict?
+
+A backfill conflict happens when Geneva attempts to commit results computed against an older table version, but the table has advanced due to another write.
+
+In practice, conflicts are most likely when:
+
+- A long-running `backfill` overlaps with other writers.
+- Maintenance operations rewrite fragments or files while the job is preparing to commit.
+- Schema changes (for example, `alter_columns`) occur mid-job.
+
+## Safe vs conflicting operations during backfill
+
+The table below summarizes common operations and how they interact with a running `backfill`.
+
+| Operation | Safe during backfill? | Why | Recommendation |
+| --- | --- | --- | --- |
+| Read-only queries | Yes | Reads do not advance the table version. | Safe to run at any time. |
+| `backfill` (same column, same filter) | Usually | Geneva can skip already-computed work via checkpoints, but concurrent commits can still conflict. | Avoid overlapping runs; prefer one active job per table/column. |
+| `backfill` with a filter like `WHERE <col> IS NULL` | Usually | Limits writes to rows that still need values, reducing overlap with other writers. | Prefer incremental backfills using `WHERE <col> IS NULL`. |
+| `merge_insert` | No (conflict-prone) | Writes new data / rewrites fragments and advances the table version. | Pause `merge_insert` workloads or run them against a different table while backfill runs. |
+| `delete` | No (conflict-prone) | Removes rows and advances the table version; can invalidate work computed by the backfill. | Avoid `delete` during backfill; schedule deletes before/after. |
+| `compact_files` | No (conflict-prone) | Rewrites files/fragments and advances the table version. | Do not run during backfill; run after the job completes. |
+| `optimize` | No (conflict-prone) | Typically rewrites data layout and/or indices, advancing the table version. | Run `optimize` after backfill (or before, if it reduces fragmentation). |
+| `alter_columns` | No (conflict-prone) | Schema changes can invalidate the job plan and/or computed outputs. | Freeze schema during backfill; apply `alter_columns` before starting. |
+
+<Warning>
+Backfill conflicts are not data corruption. They are a safety mechanism: Geneva refuses to commit results if the table has changed in a way that could make the write unsafe.
+</Warning>
+
+## Automatic retry behavior
+
+When Geneva detects a version conflict at commit time, it will automatically retry the commit.
+
+- Retries are bounded by `GENEVA_VERSION_CONFLICT_MAX_RETRIES`.
+- Each retry re-reads the latest table version and attempts to apply the pending backfill outputs safely.
+
+If conflicts continue beyond the retry limit, the job fails and requires manual intervention.
+
+## Recovery steps when a job fails
+
+When a backfill fails due to repeated conflicts, the safest recovery is to reduce concurrent writers and re-run the job.
+
+1. **Stop or pause conflicting writers**
+   - Pause `merge_insert` pipelines.
+   - Avoid `delete`, `compact_files`, and `optimize` until the backfill completes.
+   - Avoid schema changes such as `alter_columns`.
+
+2. **Re-run the backfill using an incremental filter**
+
+   Prefer a filter that only targets missing values, for example `WHERE <col> IS NULL`. This reduces the amount of data rewritten and lowers the chance of overlapping with other writes.
+
+3. **Verify progress**
+   - Confirm that the target column is being populated as expected.
+   - If you use intermediate commits (for example via commit granularity), verify that partial results are visible.
+
+4. **Run maintenance after the backfill**
+   - Once the backfill is complete, run `compact_files` and/or `optimize` if needed.
+
+## Best practices to avoid conflicts
+
+- **Treat backfill as a write workload**: schedule it like you would any other table mutation.
+- **Freeze schema during backfill**: avoid `alter_columns` until the job completes.
+- **Avoid maintenance rewrites mid-job**: run `compact_files` / `optimize` after backfill.
+- **Prefer incremental backfills**: use filters like `WHERE <col> IS NULL` to minimize overlap.
+- **Minimize concurrent writers**: avoid overlapping `merge_insert` and `delete` with backfill.
