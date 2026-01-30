@@ -548,6 +548,45 @@ def test_embedding_voyageai_usage() -> None:
     # --8<-- [end:embedding_voyageai_usage]
 
 
+def test_embedding_voyageai_multimodal_35_text() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_voyageai_multimodal_35_text]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, Vector
+
+    voyageai = get_registry().get("voyageai").create(name="voyage-multimodal-3.5")
+
+    class TextModel(LanceModel):
+        text: str = voyageai.SourceField()
+        vector: Vector(voyageai.ndims()) = voyageai.VectorField()
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "voyageai-multimodal-35"))
+    tbl = db.create_table("test_multimodal_35", schema=TextModel, mode="overwrite")
+
+    tbl.add([{"text": "hello world"}, {"text": "goodbye world"}])
+    # --8<-- [end:embedding_voyageai_multimodal_35_text]
+
+
+def test_embedding_voyageai_multimodal_35_flexible_dimensions() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_voyageai_multimodal_35_flexible_dimensions]
+    from lancedb.embeddings import get_registry
+
+    voyageai = get_registry().get("voyageai").create(
+        name="voyage-multimodal-3.5",
+        output_dimension=512,
+    )
+
+    assert voyageai.ndims() == 512
+    # --8<-- [end:embedding_voyageai_multimodal_35_flexible_dimensions]
+
+
 # Reranking integrations
 
 
