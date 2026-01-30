@@ -1,0 +1,172 @@
+---
+title: Error Handling in Geneva UDFs
+sidebarTitle: Error handling
+description: Configure retry, skip, and fail behaviors for Geneva UDF execution using factory helpers, exception matchers, and advanced Tenacity control.
+icon: triangle-exclamation
+---
+
+Geneva UDFs often call external systems (LLM APIs, object stores, HTTP services) where transient failures are expected. Geneva provides a structured way to decide what to do when a UDF call errors:
+
+- **Retry** (for transient failures)
+- **Skip** (record a null / missing value and continue)
+- **Fail** (stop the job)
+
+This page describes the building blocks Geneva uses for error handling: **factory functions**, **exception matchers**, and **advanced Tenacity control**.
+
+## Factory functions
+
+Factory functions are helpers that build an error-handling policy you can attach to a UDF (or to a computed column that uses a UDF).
+
+Use factory functions when you want a readable, reusable policy like:
+
+- “Retry on timeouts and rate limits, then fail”
+- “Retry a few times, then skip this row”
+- “Never retry; fail immediately”
+
+### Common patterns
+
+| Goal | Recommended behavior | Notes |
+| --- | --- | --- |
+| External API calls (LLM / embeddings) | Retry → then fail | Prefer exponential backoff; treat auth errors as fail-fast. |
+| Best-effort enrichment (optional column) | Retry → then skip | Useful when missing values are acceptable. |
+| Deterministic computation (pure function) | Fail | Retries usually won’t help; fix the bug instead. |
+
+## Exception matchers
+
+Exception matchers decide **which errors** should trigger retry/skip/fail. Matchers are typically composed from:
+
+- **Exception types** (e.g., timeouts)
+- **Message / error-code patterns** (e.g., “429”, “rate limit”)
+- **Custom predicates** (your own function that inspects the exception)
+
+### Guidance
+
+| Error category | Typical action | Why |
+| --- | --- | --- |
+| Timeouts / connection resets | Retry | Usually transient. |
+| Rate limiting / throttling | Retry | Backoff reduces pressure and succeeds later. |
+| Authentication / permission errors | Fail | Not transient; requires config change. |
+| Invalid input / schema mismatch | Fail | Indicates a bug or bad data. |
+| Not found (optional resource) | Skip or Fail | Depends on whether missing data is acceptable. |
+
+## Advanced Tenacity control
+
+Geneva uses [Tenacity](https://tenacity.readthedocs.io/) to implement retries. If you need more control than the default factories provide, you can configure Tenacity behavior directly.
+
+Common Tenacity controls you may want:
+
+- **Stop conditions** (max attempts, max elapsed time)
+- **Wait strategy** (fixed, exponential, jitter)
+- **Retry conditions** (retry only on certain exceptions)
+- **Before/after hooks** (logging, metrics)
+
+> **Note**: Prefer simple policies first. Overly aggressive retries can amplify load on downstream services and slow down backfills.
+
+## Configuring retry, skip, and fail
+
+At a high level, you choose:
+
+1. **What to match** (exception matcher)
+2. **What to do** (retry / skip / fail)
+3. **How to retry** (Tenacity stop + wait + retry rules)
+
+### Retry
+
+Use retry when the same input is likely to succeed later.
+
+Typical configuration:
+
+- Retry on timeouts, connection errors, and rate limits
+- Exponential backoff with jitter
+- A bounded number of attempts
+
+### Skip
+
+Use skip when:
+
+- The computed column is optional
+- You’d rather keep the job moving than block on a small fraction of bad rows
+
+Skipping should be paired with:
+
+- A clear “skipped” signal (e.g., null output)
+- Monitoring/metrics so you notice rising skip rates
+
+### Fail
+
+Use fail when:
+
+- The error indicates a bug (e.g., type mismatch)
+- The error indicates a permanent configuration issue (e.g., invalid credentials)
+- You need strict correctness guarantees
+
+## Examples
+
+The examples below show the *shape* of common policies. Adapt them to your UDF and the error classes your dependencies raise.
+
+### Retry then fail (transient errors)
+
+<CodeGroup>
+```python Python icon="python"
+from geneva import udf
+
+# Pseudocode: configure a policy that retries transient errors and fails otherwise.
+# policy = retry_then_fail(
+#     match=any_of(
+#         exception_type(TimeoutError),
+#         message_contains("429"),
+#     ),
+#     stop=max_attempts(5),
+#     wait=exponential_jitter(min_seconds=1, max_seconds=30),
+# )
+
+@udf  # (error_policy=policy)
+def fetch_caption(url: str) -> str:
+    import requests
+
+    resp = requests.get(url, timeout=30)
+    resp.raise_for_status()
+    return resp.text
+```
+</CodeGroup>
+
+### Retry then skip (best-effort enrichment)
+
+<CodeGroup>
+```python Python icon="python"
+from geneva import udf
+
+# Pseudocode: retry transient errors, but if still failing after retries, skip the row.
+# policy = retry_then_skip(
+#     match=message_contains("rate limit"),
+#     stop=max_attempts(3),
+#     wait=fixed_wait(seconds=2),
+# )
+
+@udf  # (error_policy=policy)
+def optional_metadata(url: str) -> str | None:
+    import requests
+
+    resp = requests.get(url, timeout=10)
+    resp.raise_for_status()
+    return resp.headers.get("x-metadata")
+```
+</CodeGroup>
+
+### Fail fast (no retries)
+
+<CodeGroup>
+```python Python icon="python"
+from geneva import udf
+
+# Pseudocode: fail immediately on any exception.
+# policy = fail_fast()
+
+@udf  # (error_policy=policy)
+def strict_parse_int(x: str) -> int:
+    return int(x)
+```
+</CodeGroup>
+
+Reference:
+* [Tenacity documentation](https://tenacity.readthedocs.io/)
