@@ -1,0 +1,69 @@
+---
+title: Backfill conflicts
+sidebarTitle: Conflicts
+description: Understand how Geneva handles conflicts during backfills, including safe operations, automatic retries, and recovery steps.
+icon: triangle-exclamation
+---
+
+## Overview
+
+Backfills update a table by computing new values (via a UDF) and then committing those results back into the dataset. While a backfill is running, other operations may also try to modify the same table.
+
+A **backfill conflict** happens when Geneva attempts to commit a backfill result but the table has advanced (new version) in a way that makes the commit unsafe to apply as-is.
+
+This page explains which operations are safe during a backfill, what happens when conflicts occur, and how to recover.
+
+## Safe vs conflicting operations
+
+Not all table activity causes conflicts. In general:
+
+- **Safe operations** are changes that do not invalidate the backfill's assumptions about the rows/fragments it is writing.
+- **Conflicting operations** are changes that overlap with the same data the backfill is trying to write, or that change table layout/metadata in a way that prevents a clean commit.
+
+The table below is a practical guide.
+
+| Operation during backfill | Expected behavior | Safe? | Notes |
+| --- | --- | --- | --- |
+| Read queries (vector/FTS/filtering) | Continue to work; may see partial results if intermediate commits are enabled | Yes | Readers see the latest committed version only. |
+| Insert new rows (append-only) | Backfill continues; new rows may not be included in the current run | Usually | Run a follow-up backfill to cover newly inserted rows. |
+| Update/overwrite rows that the backfill is writing | Backfill commit may fail and retry | No | Overlapping writes are the most common source of conflicts. |
+| Delete rows/fragments that the backfill is writing | Backfill commit may fail and retry | No | Deletions can invalidate the backfill's planned work. |
+| Schema changes (add/drop/rename columns) | Backfill may fail or be cancelled | No | Avoid schema changes while a backfill is running. |
+| Index creation/optimization | May increase load; can trigger conflicts depending on implementation | Depends | Prefer running heavy maintenance outside the backfill window. |
+
+## Automatic retry behavior
+
+When Geneva detects a conflict while committing a backfill checkpoint, it will automatically retry the commit.
+
+Retries are intended to handle transient contention (for example, a small concurrent write that briefly races with the backfill). If contention continues, retries may eventually stop and the job will surface an error.
+
+## Recovery steps
+
+If a backfill fails due to conflicts, you can usually recover without losing all progress.
+
+1. **Stop or pause conflicting writers**
+   - Identify any jobs or services writing to the same table.
+   - Pause updates/deletes/overwrites that overlap with the backfill's target column or rows.
+
+2. **Re-run the backfill**
+   - Geneva uses checkpoints so that completed work can be reused.
+   - Re-running the same backfill typically resumes from the last successful checkpoint.
+
+3. **Validate results**
+   - Spot-check the backfilled column for expected values.
+   - If you use filters (`where=...`) or limited fragments (`num_frags`), ensure the intended coverage is complete.
+
+4. **Backfill newly added or previously skipped rows**
+   - If inserts happened during the run, execute another backfill to populate values for the new rows.
+
+## Best practices to avoid conflicts
+
+- **Prefer append-only ingestion during backfills**: inserts are easier to reconcile than overlapping updates/deletes.
+- **Avoid schema changes during backfills**: add/drop/rename columns before starting, or after completion.
+- **Use filtered backfills for incremental work**: target only rows that are missing values (e.g., `where="col is null"`).
+- **Use intermediate commits intentionally**: `commit_granularity` can expose progress, but also increases the number of commits (and therefore opportunities for contention).
+- **Schedule maintenance outside backfill windows**: compaction/optimization and index rebuilds can add load and increase the chance of conflicts.
+
+Reference:
+* [`backfill` API](https://lancedb.github.io/geneva/api/table/#geneva.table.Table.backfill)
+* [`backfill_async` API](https://lancedb.github.io/geneva/api/table/#geneva.table.Table.backfill_async)
