@@ -1,0 +1,72 @@
+---
+title: Backfill conflicts
+sidebarTitle: Backfill conflicts
+description: Learn how Geneva handles version conflicts during backfill commits, including safe operations, automatic retries, and recovery steps.
+icon: triangle-exclamation
+---
+
+Backfills write results back to your table in checkpoints and commits. When multiple writers are updating the same table at the same time (for example, multiple backfills, or a backfill plus another write workload), commits can occasionally fail with a **version conflict**.
+
+This page explains which operations are safe to run concurrently with a backfill, what Geneva retries automatically, and how to recover when conflicts persist.
+
+## What is a backfill conflict?
+
+A backfill conflict is a commit-time version conflict: Geneva has computed results for some fragments, but when it attempts to commit them, the table version has advanced due to another concurrent commit.
+
+Conflicts are most common when:
+
+- You run multiple backfills against the same table at the same time.
+- You run a backfill while another process is writing to the table.
+- You use high backfill concurrency and many fragments become ready to commit at once.
+
+## Safe vs conflicting operations
+
+Not all concurrent activity is equally risky. The table below summarizes common operations and how they typically interact with a running backfill.
+
+| Operation during backfill | Safe? | Why | Recommendation |
+|---|---|---|---|
+| Read-only queries | Yes | Reads do not advance the table version. | Safe to run; use intermediate commits if you want incremental visibility. |
+| Another backfill on a different table | Yes | Conflicts are per-table. | No special action needed. |
+| Another backfill on the same table (different columns) | Sometimes | Commits still advance the same table version and may touch overlapping fragments. | Avoid overlapping schedules; prefer serializing backfills per table. |
+| Another backfill on the same table (same column) | No | High chance of writing the same fragments and racing commits. | Do not run concurrently; cancel one job and re-run after the other completes. |
+| Appending/upserting data into the same table | Sometimes | New commits advance the table version; may also change fragment layout. | If possible, pause writes during large backfills or use filtered backfills to reduce overlap. |
+| Schema changes (add/alter/drop columns) | No | Schema changes require coordinated commits and can invalidate assumptions of the running job. | Avoid schema changes while a backfill is running; apply schema changes first, then backfill. |
+
+<Warning>
+Even when two operations are logically independent (e.g., different columns), they can still conflict because they commit to the same table version.
+</Warning>
+
+## Automatic retry behavior
+
+Geneva is designed to tolerate transient conflicts. When a commit fails due to a version conflict, Geneva will retry the commit with backoff up to a configured limit.
+
+You can control the maximum number of retries for version conflicts using the `GENEVA_VERSION_CONFLICT_MAX_RETRIES` environment variable (see [Advanced Configuration](/geneva/udfs/advanced-configuration)).
+
+If conflicts continue beyond the retry limit, the job will fail rather than retry indefinitely.
+
+## Recovery steps
+
+When a backfill fails due to repeated conflicts, you can usually recover without losing all progress.
+
+1. **Identify and stop the conflicting writer**
+   - Cancel or pause other backfills targeting the same table.
+   - Pause other write workloads (ingest, upserts) if possible.
+
+2. **Re-run the backfill**
+   - Backfills are checkpointed; re-running typically resumes and avoids recomputing completed work.
+   - If you only need to fill missing values, use a filtered backfill (for example, `where="<col> is null"`) to reduce the amount of data touched.
+
+3. **Reduce commit pressure**
+   - Lower `concurrency` and/or `intra_applier_concurrency` to reduce the number of fragments becoming ready to commit simultaneously.
+   - Increase `commit_granularity` to commit less frequently (fewer commit attempts), at the cost of less frequent intermediate visibility.
+
+4. **Validate results incrementally**
+   - Use `num_frags` to run a small sample backfill first, then scale up.
+
+## Best practices to avoid conflicts
+
+- **Serialize backfills per table**: Prefer one backfill at a time for a given table.
+- **Schedule around ingestion**: Run large backfills during low-write windows.
+- **Use filtered backfills**: Target only rows that need updates to minimize overlap with other writers.
+- **Start small**: Use `num_frags` to validate behavior and performance before running at full scale.
+- **Tune concurrency deliberately**: Higher concurrency increases throughput, but also increases the chance of commit contention.
