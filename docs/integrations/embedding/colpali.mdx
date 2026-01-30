@@ -1,0 +1,44 @@
+---
+title: ColPali
+sidebarTitle: ColPali
+---
+
+import { PyEmbeddingColpaliUsage } from '/snippets/integrations.mdx';
+
+ColPali provides multimodal **multi-vector** embeddings for retrieval. In LanceDB, the ColPali embedding function is registered in the embedding registry as `colpali`.
+
+Using ColPali requires the `colpali_engine` package (and its dependencies like PyTorch and Transformers).
+
+Supported models are:
+
+- ColPali models (e.g. `vidore/colpali-v1.3`)
+- ColQwen2.5 models (e.g. `Metric-AI/ColQwen2.5-3b-multilingual-v1.0`)
+- ColQwen2 models (e.g. `vidore/colqwen2-v1.0`)
+- ColSmol models (e.g. `vidore/colSmol-256M`)
+
+<Info>
+ColPali produces **multi-vector** embeddings (a list of vectors per input). When using Pydantic schemas, store these outputs using `MultiVector(func.ndims())`.
+</Info>
+
+Supported parameters (to be passed in `create` method) are:
+
+| Parameter | Type | Default Value | Description |
+|---|---|---|---|
+| `model_name` | `str` | `"Metric-AI/ColQwen2.5-3b-multilingual-v1.0"` | The model name to load. The engine is inferred from the model name (ColPali / ColQwen2.5 / ColQwen2 / ColSmol). |
+| `device` | `str` | `"auto"` | Inference device. When set to `"auto"`, LanceDB selects `"cuda"` if available, otherwise `"mps"`, otherwise `"cpu"`. |
+| `dtype` | `str` | `"bfloat16"` | Data type for model weights. If `device="mps"` and `dtype="bfloat16"`, it is coerced to `"float32"` to avoid NaNs. |
+| `use_token_pooling` | `bool` | `True` | **Deprecated.** If set to `False`, token pooling is disabled by setting `pooling_strategy=None`. |
+| `pooling_strategy` | `str` | `"hierarchical"` | Token pooling strategy. Supported values: `"hierarchical"`, `"lambda"`, or `None` (disable pooling). |
+| `pooling_func` | `Any` | `None` | Pooling function used when `pooling_strategy="lambda"`. Required when using `"lambda"`. |
+| `pool_factor` | `int` | `2` | Pooling factor used by hierarchical token pooling. |
+| `quantization_config` | `Any` | `None` | Optional quantization config. Must be a `transformers.BitsAndBytesConfig` when provided. |
+| `batch_size` | `int` | `2` | Batch size used when embedding text/images. |
+| `offload_folder` | `str` | `None` | Optional folder for CPU offloading of model weights. |
+
+Usage Example:
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingColpaliUsage}
+  </CodeBlock>
+</CodeGroup>

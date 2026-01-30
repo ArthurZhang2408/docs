@@ -586,6 +586,46 @@ def test_embedding_voyageai_multimodal() -> None:
     # --8<-- [end:embedding_voyageai_multimodal]
 
 
+def test_embedding_colpali_usage() -> None:
+    require_flag("RUN_COLPALI_SNIPPETS")
+    pytest.importorskip("colpali_engine")
+
+    # --8<-- [start:embedding_colpali_usage]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, MultiVector
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "colpali-demo"))
+    func = get_registry().get("colpali").create()
+
+    class MediaItems(LanceModel):
+        text: str
+        image_uri: str = func.SourceField()
+        image_vectors: MultiVector(func.ndims()) = func.VectorField()
+
+    table = db.create_table("media_items", schema=MediaItems, mode="overwrite")
+    table.add(
+        [
+            {
+                "text": "A photo of a cat",
+                "image_uri": "https://upload.wikimedia.org/wikipedia/commons/thumb/3/3a/Cat03.jpg/320px-Cat03.jpg",
+            },
+            {
+                "text": "A photo of a dog",
+                "image_uri": "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Golde33443.jpg/320px-Golde33443.jpg",
+            },
+        ]
+    )
+
+    # Text query -> image results
+    results = table.search("cat").limit(1).to_list()
+    print(results)
+    # --8<-- [end:embedding_colpali_usage]
+
+
 # Reranking integrations
 
 
