@@ -1,0 +1,95 @@
+---
+title: Backfill conflicts
+sidebarTitle: Conflicts
+description: Understand how Geneva handles conflicts during backfill operations, including safe vs conflicting operations, automatic retries, and recovery steps.
+icon: triangle-exclamation
+---
+
+Backfills update a table by computing new column values (via UDFs) and committing those results back to Lance. Because backfills can run for a long time, it’s common for other writers (or other backfills) to modify the same table concurrently.
+
+This page explains what Geneva considers a conflict, what happens when a conflict is detected, and how to recover safely.
+
+## What is a backfill conflict?
+
+A **backfill conflict** occurs when Geneva attempts to commit a backfill result, but the table has advanced to a newer version in a way that makes the commit unsafe.
+
+Conflicts are most commonly caused by:
+
+- Another process writing to the same table (append, update, delete, merge, optimize/compaction)
+- A second backfill job targeting the same table at the same time
+- A workflow that repeatedly rewrites fragments while a backfill is running
+
+## Safe vs conflicting operations
+
+Not every concurrent change is a problem. Geneva can often rebase and retry when the table changes in compatible ways.
+
+| Concurrent operation | Typical outcome | Why |
+| --- | --- | --- |
+| **Append-only writes** (new rows added) | Usually safe | Backfill can continue and commit results for fragments it processed; new fragments can be picked up in a later run. |
+| **Backfill a different column** | Usually safe | Independent columns can often be computed and committed without overlapping writes. |
+| **Schema changes** (add/rename/drop columns) | Often conflicting | The backfill plan and output schema may no longer match the table state. |
+| **Row-level updates/deletes** affecting the same fragments | Often conflicting | The fragment contents the backfill computed against may no longer match what will be committed. |
+| **Optimize/compaction** (fragment rewrite) | Often conflicting | Fragment IDs / layout can change, invalidating the backfill’s planned work. |
+| **Two backfills writing the same column** | Conflicting | Both jobs attempt to write the same outputs; last-writer-wins would be unsafe. |
+
+<Note>
+The exact outcome depends on *what changed* and *where* (e.g., whether the same fragments/rows are touched). When in doubt, treat concurrent writes during a backfill as a potential conflict and plan for retries.
+</Note>
+
+## Automatic retry behavior
+
+When Geneva detects a conflict while committing, it will typically:
+
+1. **Stop the current commit attempt**
+2. **Refresh the table state** (load the latest table version)
+3. **Retry the commit** if it can safely rebase the backfill results
+
+Retries are intended to handle transient races (for example, a small write that lands while a backfill is committing).
+
+<Warning>
+If the table is being continuously modified (for example, frequent optimize jobs or high-rate updates), a backfill may repeatedly conflict and make little progress. In that case, pause other writers or run the backfill in a maintenance window.
+</Warning>
+
+## Recovery steps
+
+If a backfill fails due to conflicts, you can usually recover without losing all progress.
+
+### 1) Identify what changed
+
+Use your operational logs and job history to determine whether the table was:
+
+- Appended to
+- Updated/deleted
+- Optimized/compacted
+- Schema-modified
+- Written by another backfill
+
+### 2) Decide whether to resume or restart
+
+- **Resume** when the conflict was transient and the table is now stable.
+- **Restart** when the table layout or schema changed significantly (for example, compaction, major updates, or schema changes).
+
+Because Geneva checkpoints work, rerunning a backfill often reuses completed checkpoints and only recomputes missing work.
+
+### 3) Re-run with a narrower scope (optional)
+
+To reduce the chance of repeated conflicts:
+
+- Use a **filter** (`where=...`) to backfill a subset first
+- Limit work to a small sample (for example, a small number of fragments) to validate behavior
+- Reduce concurrency if your storage system is under heavy write load
+
+See: [Backfilling](/geneva/jobs/backfilling/)
+
+## Best practices to avoid conflicts
+
+- **Avoid running optimize/compaction while backfilling** the same table.
+- **Don’t run two backfills that write the same column** at the same time.
+- **Prefer append-only ingestion during backfills**; schedule updates/deletes separately.
+- **Use intermediate commits** (`commit_granularity`) to make progress visible and reduce the amount of work at risk per commit.
+- **Start with a small run** (filtered backfill or limited fragments) to validate throughput and correctness before scaling up.
+
+Related:
+- [Distributed Job Performance](/geneva/jobs/performance/)
+- [Execution Contexts](/geneva/jobs/contexts/)
+- [Geneva Console](/geneva/jobs/console/)
