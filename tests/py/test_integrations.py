@@ -888,6 +888,45 @@ def test_reranking_rrf_usage() -> None:
     # --8<-- [end:reranking_rrf_usage]
 
 
+def test_reranking_mrr_usage() -> None:
+    require_flag("RUN_RERANKER_SNIPPETS")
+
+    # --8<-- [start:reranking_mrr_usage]
+    import lancedb
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, Vector
+    from lancedb.rerankers import MRRReranker
+
+    embedder = get_registry().get("sentence-transformers").create()
+    db = lancedb.connect("~/.lancedb")
+
+    class Schema(LanceModel):
+        text: str = embedder.SourceField()
+        vector: Vector(embedder.ndims()) = embedder.VectorField()
+
+    data = [
+        {"text": "hello world"},
+        {"text": "goodbye world"},
+    ]
+    tbl = db.create_table("test", schema=Schema, mode="overwrite")
+    tbl.add(data)
+
+    reranker = MRRReranker(weight_vector=0.5, weight_fts=0.5, return_score="relevance")
+
+    # Run hybrid search with a reranker
+    tbl.create_fts_index("text", replace=True)
+    result = (
+        tbl.search("hello", query_type="hybrid").rerank(reranker=reranker).to_list()
+    )
+
+    # Multi-vector reranking (combine multiple vector searches)
+    rs1 = tbl.search("hello", vector_column_name="vector").limit(10).with_row_id(True)
+    rs2 = tbl.search("hello", vector_column_name="vector").limit(10).with_row_id(True)
+    combined = reranker.rerank_multivector([rs1, rs2])
+    print(combined.to_pandas().head())
+    # --8<-- [end:reranking_mrr_usage]
+
+
 def test_reranking_voyageai_usage() -> None:
     require_flag("RUN_RERANKER_SNIPPETS")
     os.environ["VOYAGE_API_KEY"] = require_env("VOYAGE_API_KEY")
