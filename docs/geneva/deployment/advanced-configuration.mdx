@@ -1,0 +1,44 @@
+---
+title: Advanced Configuration
+sidebarTitle: Advanced configuration
+description: Advanced Geneva configuration via GENEVA_ environment variables.
+icon: sliders
+---
+
+<Info>
+This page documents advanced configuration options exposed via `GENEVA_` environment variables.
+
+Default values can vary by Geneva version and deployment environment. If you need to confirm the effective value at runtime, inspect the environment of the Geneva client, head pod, and worker pods.
+</Info>
+
+## Admission control
+
+Admission control settings are used to protect the cluster (and downstream services) from overload by limiting how much work can be admitted at once.
+
+| Environment variable | Default | Description |
+| :-- | :-- | :-- |
+| `GENEVA_*` | TBD | Admission control configuration options. |
+
+## Commit and retry configuration
+
+These settings control how Geneva commits results and how it retries operations that may fail transiently.
+
+| Environment variable | Default | Description |
+| :-- | :-- | :-- |
+| `GENEVA_*` | TBD | Commit and retry configuration options. |
+
+## Lance retry configuration
+
+These settings control retry behavior in the underlying Lance read/write operations.
+
+| Environment variable | Default | Description |
+| :-- | :-- | :-- |
+| `GENEVA_*` | TBD | Lance retry configuration options. |
+
+## Other configuration
+
+Miscellaneous configuration options.
+
+| Environment variable | Default | Description |
+| :-- | :-- | :-- |
+| `GENEVA_*` | TBD | Other configuration options. |
