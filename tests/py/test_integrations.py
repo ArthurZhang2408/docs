@@ -586,6 +586,50 @@ def test_embedding_voyageai_multimodal() -> None:
     # --8<-- [end:embedding_voyageai_multimodal]
 
 
+def test_embedding_colpali_examples() -> None:
+    require_flag("RUN_COLPALI_SNIPPETS")
+    pytest.importorskip("colpali_engine")
+
+    # --8<-- [start:embedding_colpali_setup]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    import requests
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, MultiVector
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "colpali-demo"))
+    func = get_registry().get("colpali").create()
+
+    class MediaItems(LanceModel):
+        text: str
+        image_uri: str = func.SourceField()
+        image_bytes: bytes = func.SourceField()
+        image_vectors: MultiVector(func.ndims()) = func.VectorField()
+
+    table = db.create_table("media_items", schema=MediaItems, mode="overwrite")
+
+    image_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/PNG_transparency_demonstration_1.png/300px-PNG_transparency_demonstration_1.png"
+    image_bytes = requests.get(image_url, timeout=10).content
+
+    table.add(
+        [
+            {
+                "text": "A picture of dice.",
+                "image_uri": image_url,
+                "image_bytes": image_bytes,
+            }
+        ]
+    )
+    # --8<-- [end:embedding_colpali_setup]
+
+    # --8<-- [start:embedding_colpali_text_search]
+    results = table.search("dice").limit(1).to_pydantic(MediaItems)
+    print(results[0].text)
+    # --8<-- [end:embedding_colpali_text_search]
+
+
 # Reranking integrations
 
 
