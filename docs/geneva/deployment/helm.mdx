@@ -1,0 +1,153 @@
+---
+title: Deploy Geneva with Helm
+sidebarTitle: Helm
+description: Deploy Geneva on Kubernetes using the Geneva Helm chart, including prerequisites, installation steps, and common configuration values.
+icon: helm
+---
+
+<Tip>
+**Feature Engineering is deployed automatically in LanceDB Enterprise**
+
+Feature Engineering is deployed automatically as part of [LanceDB Enterprise](/enterprise/).
+For manual installation in self-managed environments, follow the instructions below.
+</Tip>
+
+## Prerequisites
+
+- A Kubernetes cluster (for example: EKS or GKE)
+- `kubectl` configured to access your cluster
+- Helm 3 installed
+- A storage location for Geneva outputs and intermediate artifacts (for example: S3 or GCS)
+
+If you are deploying Ray-based distributed execution, you will also need the KubeRay operator installed in the cluster.
+
+## Basic Kubernetes Setup
+
+In the following sections we'll use these variables:
+
+```bash
+NAMESPACE=geneva  # replace with your actual namespace if different
+```
+
+Create the namespace if it does not already exist:
+
+```bash
+kubectl create namespace $NAMESPACE
+```
+
+## Install required operators and plugins
+
+Geneva deployments commonly rely on Kubernetes operators and plugins for distributed execution and (optionally) GPU scheduling.
+
+### Install the KubeRay operator
+
+If you plan to run Geneva jobs on Ray in Kubernetes, install the KubeRay operator:
+
+```bash
+helm repo add kuberay https://ray-project.github.io/kuberay-helm/
+helm repo update
+
+helm install kuberay-operator kuberay/kuberay-operator \
+  -n $NAMESPACE
+```
+
+### (Optional) Install the NVIDIA device plugin
+
+If your Ray workers will request GPUs, install the NVIDIA device plugin:
+
+```bash
+curl https://raw.githubusercontent.com/NVIDIA/k8s-device-plugin/v0.17.0/deployments/static/nvidia-device-plugin.yml \
+  > nvidia-device-plugin.yml
+kubectl apply -f nvidia-device-plugin.yml
+```
+
+## Deploy the Geneva Helm chart
+
+### Add the Geneva Helm repository
+
+Add the Helm repository that hosts the Geneva chart (replace the URL with the one provided by your Geneva distribution):
+
+```bash
+helm repo add geneva <GENEVA_HELM_REPO_URL>
+helm repo update
+```
+
+### Configure chart values
+
+At minimum, you should configure a root URI where Geneva can read/write artifacts.
+
+For example:
+
+```yaml
+geneva:
+  rootUri:
+    value: s3://my-data-bucket
+```
+
+#### Configure cloud identity (service account / IAM role)
+
+Geneva pods typically need cloud credentials to access object storage.
+
+You can provide these credentials in one of two common ways:
+
+1) **Annotate the Kubernetes ServiceAccount** used by Geneva (recommended for EKS IRSA and GKE Workload Identity)
+2) **Provide a client identity** (for example, an AWS role ARN or a GCP service account) if your environment requires it
+
+**ServiceAccount annotations**
+
+```yaml
+geneva:
+  serviceAccount:
+    annotations:
+      # EKS (IRSA)
+      eks.amazonaws.com/role-arn: arn:aws:iam::0123456789:role/geneva_service_role
+
+      # GKE (Workload Identity)
+      iam.gke.io/gcp-service-account: geneva-service-account@my-project.iam.gserviceaccount.com
+```
+
+**Client identity fields**
+
+If your deployment requires specifying a client identity explicitly, set one of the following values:
+
+```yaml
+geneva:
+  gcp:
+    clientServiceAccount: ""  # set to your GCP service account email if required
+  aws:
+    clientRoleArn: ""         # set to your AWS role ARN if required
+```
+
+<Warning>
+The exact identity mechanism you should use depends on your Kubernetes environment (EKS vs GKE) and how your cluster is configured for workload identity. Prefer ServiceAccount annotations when available.
+</Warning>
+
+### Install (or upgrade) Geneva
+
+Create a `values.yaml` file with your configuration and install the chart:
+
+```bash
+helm upgrade --install geneva geneva/geneva \
+  -n $NAMESPACE \
+  -f values.yaml
+```
+
+Verify the deployment:
+
+```bash
+kubectl get pods -n $NAMESPACE
+kubectl get svc -n $NAMESPACE
+```
+
+## Configuration reference
+
+The following values are commonly configured when deploying Geneva with Helm:
+
+| Value | Type | Example |
+| --- | --- | --- |
+| `geneva.rootUri.value` | string | `s3://my-data-bucket` |
+| `geneva.serviceAccount.annotations` | map | `{"eks.amazonaws.com/role-arn": "arn:aws:iam::0123456789:role/geneva_service_role"}` |
+| `geneva.gcp.clientServiceAccount` | string | `geneva-service-account@my-project.iam.gserviceaccount.com` |
+| `geneva.aws.clientRoleArn` | string | `arn:aws:iam::0123456789:role/geneva_service_role` |
+
+If you run into issues, see [Troubleshooting](/geneva/deployment/troubleshooting).
