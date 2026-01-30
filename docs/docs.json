@@ -168,7 +168,8 @@
                   "geneva/jobs/materialized-views",
                   "geneva/jobs/contexts",
                   "geneva/jobs/console",
-                  "geneva/jobs/performance"
+                  "geneva/jobs/performance",
+                  "geneva/jobs/conflicts"
                 ]
               },
               {

@@ -1,0 +1,118 @@
+---
+title: Backfill conflicts
+sidebarTitle: Conflicts
+description: Understand how Geneva detects and recovers from backfill conflicts, what operations are safe to run concurrently, and how to avoid conflicts.
+icon: triangle-exclamation
+---
+
+Geneva backfills write results back into a Lance table by committing new fragments. When multiple writers (backfills or other table writes) touch the same parts of a table at the same time, Lance can raise a **version conflict**.
+
+This page explains what Geneva considers safe vs conflicting, how automatic retries work, and what to do when conflicts persist.
+
+<Tip>
+If you are seeing repeated failures with messages like "version conflict" or "Too many concurrent writers", review the best practices at the end of this page.
+</Tip>
+
+## What is a backfill conflict?
+
+A conflict happens when a backfill attempts to commit based on an older table version, but another writer has already committed a newer version.
+
+In practice, conflicts are most common when:
+
+- Two backfills run concurrently against the same table.
+- A backfill runs while another process is updating/merging/compacting the same table.
+- Many writers are committing frequently (high `commit_granularity`), increasing the chance of overlapping commits.
+
+## Safe vs conflicting operations
+
+Whether two operations can run concurrently depends on whether they will try to commit overlapping changes.
+
+### Generally safe
+
+These patterns are typically safe because they do not create competing commits:
+
+- **Multiple readers** querying the table while a backfill runs.
+- **Backfills on different tables**.
+- **Backfills that do not overlap in rows/fragments**, for example by using disjoint `where` filters or limiting work with `num_frags`.
+
+### Likely to conflict
+
+These patterns commonly lead to version conflicts:
+
+- **Two backfills on the same table** that may touch the same fragments.
+- **Backfill + write operations** (e.g. updates/merges/deletes) on the same table at the same time.
+- **Backfill + maintenance operations** (e.g. compaction/optimization) that rewrite fragments while the backfill is committing.
+
+<Warning>
+Even if two backfills target different output columns, they can still conflict if they commit overlapping fragments.
+</Warning>
+
+## Automatic retry behavior
+
+Geneva is designed to recover from transient conflicts by retrying commits.
+
+### Version conflict retries
+
+Geneva retries version conflicts up to the limit configured by:
+
+- `GENEVA_VERSION_CONFLICT_MAX_RETRIES` (default `10`)
+
+Version conflicts occur when concurrent backfills commit to the same fragments.
+
+### Commit retries
+
+More general commit failures are retried up to:
+
+- `GENEVA_COMMIT_MAX_RETRIES` (default `12`)
+
+These retries use exponential backoff (1s, 2s, 4s, 8s, 16s, then 16s capped) before giving up.
+
+### Lance I/O retries
+
+Some Lance I/O failures are retried with exponential backoff with jitter. This includes:
+
+- `OSError`
+- `ValueError`
+- `RuntimeError("Too many concurrent writers")`
+
+The retry behavior is controlled by:
+
+- `GENEVA_RETRY_LANCE_ATTEMPTS` (default `7`)
+- `GENEVA_RETRY_LANCE_INITIAL_SECS` (default `0.5`)
+- `GENEVA_RETRY_LANCE_MAX_SECS` (default `120.0`)
+
+Reference: see [Advanced Configuration](/geneva/udfs/advanced-configuration) for the full list of environment variables.
+
+## Recovery steps when conflicts persist
+
+If Geneva exhausts retries, the job will fail rather than loop forever. In most cases you can safely re-run the backfill.
+
+1. **Identify competing writers**
+   - Check for other backfills running against the same table.
+   - Check for other processes doing updates/merges/deletes or maintenance operations.
+
+2. **Stop or serialize conflicting work**
+   - Pause other writers, or schedule backfills during a maintenance window.
+
+3. **Re-run the backfill**
+   - Geneva backfills checkpoint progress so a restart typically resumes without recomputing everything.
+
+4. **Reduce commit contention**
+   - Increase `commit_granularity` so commits happen less frequently.
+   - Reduce `concurrency` if you have many writers competing for the same table.
+
+5. **Narrow the scope**
+   - Use `where` to backfill a subset of rows.
+   - Use `num_frags` to validate on a small slice before scaling up.
+
+## Best practices to avoid conflicts
+
+- **Avoid concurrent writers on the same table.** If you need multiple backfills, run them sequentially.
+- **Prefer fewer, larger commits.** A larger `commit_granularity` reduces the number of commits and therefore the chance of conflict.
+- **Use filters for incremental work.** Use `where` to backfill only missing values (e.g. `col is null`) to reduce overlap.
+- **Test on a small subset first.** Use `num_frags` to validate performance and correctness before running at full scale.
+
+See also:
+
+- [Backfilling](/geneva/jobs/backfilling)
+- [Advanced Configuration](/geneva/udfs/advanced-configuration)
