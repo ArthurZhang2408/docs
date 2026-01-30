@@ -177,6 +177,7 @@
                   "geneva/deployment/troubleshooting"
                 ]
               },
+              "geneva/configuration",
               "geneva/reference"
             ]
           },

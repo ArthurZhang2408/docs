@@ -1,0 +1,144 @@
+---
+title: "Advanced configuration"
+sidebarTitle: "Configuration"
+description: "Fine-tune Geneva behavior with advanced configuration options exposed through environment variables."
+icon: "wrench"
+keywords: ["geneva", "configuration", "environment variables", "admission control", "retries", "commit", "lance"]
+---
+
+<Badge color="red">Enterprise-only</Badge>
+
+Geneva exposes a set of advanced configuration knobs via environment variables. These settings are intended for operators who need to tune runtime behavior (for example, controlling concurrency, retry behavior, or I/O characteristics) without changing application code.
+
+<Warning title="Source of truth">
+This page is a conceptual guide. The exact set of supported `GENEVA_` environment variables (names, defaults, and semantics) is defined by the Geneva runtime.
+
+If you are unsure which variables are available in your deployment, inspect the Geneva container image / runtime configuration used by your cluster.
+</Warning>
+
+## When to use environment-variable configuration
+
+Use `GENEVA_` environment variables when you need to:
+
+- Apply a consistent policy across all jobs (for example, admission control limits).
+- Tune behavior per environment (dev vs staging vs production).
+- Mitigate transient infrastructure issues (for example, object-store throttling) by adjusting retry/backoff.
+- Change behavior in Kubernetes without rebuilding images (for example, via Helm values or pod env).
+
+If you are experimenting with a single job or table, prefer job-level or table-level configuration when available. Environment variables are best for cluster-wide defaults.
+
+## How configuration is applied
+
+Geneva reads environment variables at process startup.
+
+- **Where to set them**: in the Geneva service deployment (Kubernetes `Deployment`, Ray head/worker pod templates, Helm values, etc.).
+- **Scope**: variables apply to the process they are set on. In distributed execution, ensure the same variables are set on both the Ray head and worker pods unless you intentionally want different behavior.
+
+<Tip title="Keep head and workers consistent">
+Many issues that look like "random" failures in distributed jobs are caused by configuration drift between the Ray head and workers. Treat `GENEVA_` variables as part of your cluster spec.
+</Tip>
+
+## Configuration areas
+
+The sections below describe the major categories of advanced configuration.
+
+### Admission control
+
+Admission control limits how much work Geneva will accept and run concurrently. This is typically used to:
+
+- Prevent oversubscription of CPU/GPU/memory.
+- Avoid overwhelming shared services (object storage, metadata services, external model APIs).
+- Smooth out bursts of job submissions.
+
+Common patterns:
+
+- **Global concurrency caps**: limit the number of concurrent tasks/jobs.
+- **Per-resource caps**: separate limits for CPU-bound vs GPU-bound work.
+- **Queueing vs rejecting**: decide whether excess work waits or fails fast.
+
+Operational guidance:
+
+- Start with conservative limits and increase gradually while monitoring latency and error rates.
+- If you see storage throttling (429/503) or timeouts, reduce concurrency before increasing retries.
+
+### Commit behavior
+
+Geneva jobs often produce derived data that must be committed back to Lance datasets. Commit-related configuration typically affects:
+
+- How often intermediate results are committed.
+- How conflicts are handled when multiple writers are present.
+- Whether commits are atomic and how failures are recovered.
+
+Operational guidance:
+
+- In environments with concurrent writers, ensure your storage backend is configured for safe commits (for example, a commit store / coordination mechanism where required).
+- Prefer fewer, larger commits for throughput; prefer more frequent commits for faster recovery and smaller redo windows.
+
+### Retry and backoff behavior
+
+Retries are used to handle transient failures such as:
+
+- Object store throttling or temporary unavailability.
+- Network timeouts.
+- Intermittent failures in external dependencies.
+
+Tuning goals:
+
+- **Reduce job flakiness** without masking persistent failures.
+- **Avoid retry storms** that amplify outages.
+
+Operational guidance:
+
+- Use exponential backoff with jitter when available.
+- Cap total retry time so failures surface in a bounded window.
+- If failures correlate with load, address admission control first.
+
+### Lance I/O behavior
+
+Geneva relies on Lance for reading and writing data. I/O-related configuration typically affects:
+
+- Read/write parallelism.
+- Batch sizes and buffering.
+- Prefetching and caching.
+- Timeouts for storage operations.
+
+Operational guidance:
+
+- If you see high memory usage, reduce batch sizes and buffering.
+- If you see low throughput with underutilized CPUs, increase parallelism gradually.
+- If you see frequent timeouts, validate network/storage health before increasing timeouts.
+
+### Other settings
+
+Depending on your deployment, Geneva may expose additional configuration areas such as:
+
+- Logging verbosity and structured logging settings.
+- Metrics and tracing exporters.
+- Temporary directory locations and disk usage limits.
+- Feature flags for experimental behavior.
+
+## Setting variables in Kubernetes
+
+You can set `GENEVA_` environment variables in your Kubernetes manifests (or Helm values) so they apply to the Geneva components.
+
+```yaml
+env:
+  - name: GENEVA_EXAMPLE_SETTING
+    value: "..."
+```
+
+<Note>
+The example above uses a placeholder variable name. Use only variables supported by your Geneva version.
+</Note>
+
+## Troubleshooting
+
+- **Changes dont take effect**: environment variables are read at process startup. Restart the relevant pods (Ray head/workers) after changing values.
+- **Only some tasks fail**: verify the same variables are present on all worker pods.
+- **Worse performance after tuning**: revert to the previous known-good configuration and adjust one variable at a time.
+
+## Related pages
+
+- [Deployment overview](/geneva/deployment/)
+- [Deployment troubleshooting](/geneva/deployment/troubleshooting/)
+- [Performance](/geneva/jobs/performance/)
