@@ -1,0 +1,105 @@
+---
+title: Error Handling in Geneva UDFs
+sidebarTitle: Error handling
+description: Control how Geneva handles UDF failures with retry, skip, and fail-fast policies.
+icon: triangle-exclamation
+---
+
+Geneva lets you control what happens when a UDF raises an exception while processing rows. This is useful for UDFs that call external services (LLMs, HTTP APIs, object stores) where failures can be transient, data-dependent, or fatal.
+
+At a high level, Geneva supports three outcomes when an error occurs:
+
+- **Retry**: try the same row again (optionally with backoff)
+- **Skip**: mark the row as skipped and continue processing other rows
+- **Fail**: stop the job immediately
+
+## Common patterns (factory functions)
+
+Geneva provides factory functions for common error-handling policies:
+
+- `retry_transient()`
+- `retry_all()`
+- `skip_on_error()`
+- `fail_fast()`
+
+These helpers are intended to cover the most common cases without requiring you to build a custom policy.
+
+### Retry policies
+
+Retry policies attempt to re-run the UDF for the same input when an exception occurs.
+
+Retry policies support:
+
+- `max_attempts` (default: `3`)
+- backoff strategies: **exponential**, **fixed**, and **linear**
+
+Use retries when failures are likely to be transient (for example: rate limits, timeouts, temporary network errors).
+
+### Skip-on-error
+
+Skip-on-error policies allow the job to continue even if some rows fail.
+
+Use skip when:
+
+- you can tolerate missing values for a small fraction of rows
+- you plan to re-run a targeted backfill later
+- the error is data-dependent and not worth failing the entire job
+
+### Fail-fast
+
+Fail-fast policies stop execution on the first error.
+
+Use fail-fast when:
+
+- correctness is critical and partial results are not acceptable
+- an error indicates a bug in the UDF or an invalid assumption about the data
+
+## Custom exception handling (matchers)
+
+For more control, you can define policies that match specific exceptions and choose different outcomes.
+
+Geneva supports matchers that represent the action to take:
+
+- `Retry(...)`
+- `Skip(...)`
+- `Fail(...)`
+
+Matchers can be configured with:
+
+- `match`: which exceptions to match (for example, by exception type)
+- `max_attempts`: how many times to retry before giving up
+- `backoff`: how long to wait between attempts (exponential, fixed, or linear)
+
+This lets you express patterns like:
+
+- retry only on timeouts, but fail on validation errors
+- skip rows that are malformed, but retry on rate limits
+
+## Advanced control with Tenacity
+
+For advanced retry behavior, Geneva integrates with [Tenacity](https://tenacity.readthedocs.io/) to control retry timing and stopping conditions.
+
+This is useful when you need to:
+
+- cap total retry time
+- add jitter
+- retry only on specific exception types
+- implement custom wait/stop logic
+
+Advanced configuration is expressed using:
+
+- `ErrorHandlingConfig`
+- `UDFRetryConfig`
+
+## Restrictions and best practices
+
+<Warning>
+Error handling policies should be used to manage expected operational failures (like transient network issues). They should not be used to mask deterministic bugs in your UDF.
+</Warning>
+
+A few practical guidelines:
+
+- Prefer **fail-fast** during development to surface bugs quickly.
+- Use **retry_transient** (or a custom `Retry` matcher) for external calls that can fail temporarily.
+- Use **skip_on_error** when partial completion is acceptable and you plan to remediate failures later.
+- Keep retry counts conservative to avoid long-running jobs and repeated load on external services.
