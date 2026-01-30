@@ -548,6 +548,66 @@ def test_embedding_voyageai_usage() -> None:
     # --8<-- [end:embedding_voyageai_usage]
 
 
+def test_embedding_voyageai_multimodal_35_text() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_voyageai_multimodal_35_text]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    import pandas as pd
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, Vector
+
+    voyageai = (
+        get_registry()
+        .get("voyageai")
+        .create(name="voyage-multimodal-3.5", max_retries=0)
+    )
+
+    class TextModel(LanceModel):
+        text: str = voyageai.SourceField()
+        vector: Vector(voyageai.ndims()) = voyageai.VectorField()
+
+    df = pd.DataFrame({"text": ["hello world", "goodbye world"]})
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "voyageai-mm35-demo"))
+    tbl = db.create_table("test_multimodal_35", schema=TextModel, mode="overwrite")
+
+    tbl.add(df)
+    # --8<-- [end:embedding_voyageai_multimodal_35_text]
+
+
+def test_embedding_voyageai_multimodal_35_flexible_dimensions() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_voyageai_multimodal_35_flexible_dimensions]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    import pandas as pd
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, Vector
+
+    voyageai = (
+        get_registry()
+        .get("voyageai")
+        .create(name="voyage-multimodal-3.5", output_dimension=512, max_retries=0)
+    )
+
+    class TextModel(LanceModel):
+        text: str = voyageai.SourceField()
+        vector: Vector(voyageai.ndims()) = voyageai.VectorField()
+
+    df = pd.DataFrame({"text": ["hello world", "goodbye world"]})
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "voyageai-mm35-512-demo"))
+    tbl = db.create_table("test_multimodal_35_512", schema=TextModel, mode="overwrite")
+
+    tbl.add(df)
+    # --8<-- [end:embedding_voyageai_multimodal_35_flexible_dimensions]
+
+
 # Reranking integrations
 
 

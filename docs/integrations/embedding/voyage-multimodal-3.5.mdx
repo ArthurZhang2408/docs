@@ -1,0 +1,35 @@
+---
+title: Voyage Multimodal 3.5
+sidebarTitle: Voyage Multimodal 3.5
+description: Multimodal embeddings (text, images, and video) using VoyageAI's voyage-multimodal-3.5 model.
+---
+
+import { PyEmbeddingVoyageaiMultimodal35Text, PyEmbeddingVoyageaiMultimodal35FlexibleDimensions } from '/snippets/integrations.mdx';
+
+VoyageAI's `voyage-multimodal-3.5` model can generate embeddings for **text**, **images**, and **video**.
+
+Using the VoyageAI API requires the `voyageai` package, which can be installed using `pip install voyageai`.
+You also need to set the `VOYAGE_API_KEY` environment variable to use the VoyageAI API.
+
+Supported parameters (to be passed in `create` method) are:
+
+| Parameter | Type | Default Value | Description |
+|---|---|--------|---------|
+| `name` | `str` | `None` | Set to `"voyage-multimodal-3.5"` to enable multimodal embeddings. |
+| `output_dimension` | `int` | `None` | Output dimension for this model. Valid options: 256, 512, 1024 (default), 2048. |
+
+Usage Example:
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingVoyageaiMultimodal35Text}
+  </CodeBlock>
+</CodeGroup>
+
+Flexible output dimensions:
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingVoyageaiMultimodal35FlexibleDimensions}
+  </CodeBlock>
+</CodeGroup>
