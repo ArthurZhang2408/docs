@@ -1,0 +1,87 @@
+---
+title: Backfill conflicts
+sidebarTitle: Conflicts
+description: Understand how Geneva handles version conflicts during backfill operations, including safe operations, automatic retries, and recovery steps.
+icon: triangle-exclamation
+---
+
+Backfill jobs update table fragments over time and commit intermediate results as they complete. Because the table can also be modified by other operations, Geneva may encounter **version conflicts** when it tries to commit a backfill checkpoint.
+
+This page explains which operations are safe to run during a `backfill`, which operations can cause conflicts, how Geneva retries commits (bounded by `GENEVA_VERSION_CONFLICT_MAX_RETRIES`), and how to recover when conflicts persist.
+
+## Safe operations during backfill
+
+The following operations are generally safe to run while a backfill is in progress because they do not rewrite existing fragments in a way that invalidates the backfill job's expected table version.
+
+| Operation | Why it is safe | Notes |
+| --- | --- | --- |
+| Read queries | Do not modify table state | Includes vector search, filtering, and exports |
+| Append-only writes | Add new fragments without rewriting existing ones | New rows may not be included in the current backfill run unless you re-run or use filters |
+| Running another `backfill` on a different column | Writes different output column data | Prefer separate output columns to avoid overlapping writes |
+
+<Note>
+Even “safe” operations can change what you observe during the run. For example, appends can add new rows that are not yet backfilled.
+</Note>
+
+## Operations that commonly cause conflicts
+
+Conflicts typically happen when another operation **rewrites fragments** or **changes the schema** while the backfill job is computing and preparing commits.
+
+| Operation | Why it conflicts with `backfill` | Typical symptom |
+| --- | --- | --- |
+| `compact_files` | Rewrites / compacts data files, changing fragment layout and versions | Backfill commit fails with a version conflict and must retry |
+| `optimize` | May rewrite fragments (e.g., compaction / index maintenance), changing the expected table version | Repeated version conflict retries |
+| `delete` | Rewrites fragments to remove rows, changing fragment versions | Backfill may fail to commit checkpoints for affected fragments |
+| `merge_insert` | Can update and delete existing rows in-place (not just append), rewriting fragments | Conflicts when backfill tries to commit based on an older version |
+| `alter_columns` | Changes schema / column definitions while backfill is writing outputs | Backfill may fail early due to schema mismatch or version conflict |
+
+<Warning>
+Avoid running `compact_files`, `optimize`, `delete`, `merge_insert`, or `alter_columns` on the same table while a backfill is active unless you are prepared to pause/restart the backfill.
+</Warning>
+
+## How Geneva handles conflicts
+
+When Geneva attempts to commit a checkpoint, it validates that the table is still at the expected version. If the table version has advanced due to concurrent writes, Geneva treats this as a **version conflict**.
+
+Geneva will then:
+
+1. **Retry the commit automatically**
+2. **Re-read the latest table version**
+3. **Re-apply the commit** when possible
+
+Retries are bounded by `GENEVA_VERSION_CONFLICT_MAX_RETRIES`. If conflicts continue beyond this limit, the backfill will fail and require manual intervention.
+
+<Info>
+Automatic retries are designed to handle occasional concurrent commits (for example, another job committing at the same time). They are not a substitute for running heavy rewrite operations concurrently with backfill.
+</Info>
+
+## Recovery steps
+
+If a backfill fails due to repeated version conflicts:
+
+1. **Stop or pause conflicting writers**
+   - Temporarily disable scheduled `optimize` / `compact_files` jobs.
+   - Avoid `delete`, `merge_insert`, and `alter_columns` until the backfill completes.
+
+2. **Re-run the backfill**
+   - Backfill is checkpointed; rerunning should skip already-computed work when checkpoints are present.
+
+3. **Use a targeted filter to finish incomplete rows**
+   - If your backfill writes to a column (for example `embedding`), you can rerun only missing values using a filter like:
+
+<CodeGroup>
+```sql SQL icon="database"
+WHERE <col> IS NULL
+```
+</CodeGroup>
+
+4. **Validate results and resume maintenance**
+   - Once the backfill completes, you can safely run `compact_files` / `optimize` to improve layout and performance.
+
+## Best practices to avoid conflicts
+
+- **Avoid concurrent fragment-rewrite operations**: Schedule `compact_files` and `optimize` outside backfill windows.
+- **Prefer append-only ingestion during backfill**: If you must update existing rows, consider pausing backfill first.
+- **Separate schema changes from backfills**: Run `alter_columns` before starting a backfill, or after it completes.
+- **Use incremental backfills**: When possible, rerun backfill with a filter (e.g. `WHERE <col> IS NULL`) to fill gaps without rewriting everything.
+- **Monitor retry behavior**: If you see repeated retries approaching `GENEVA_VERSION_CONFLICT_MAX_RETRIES`, treat it as a signal to reduce concurrent writes.
