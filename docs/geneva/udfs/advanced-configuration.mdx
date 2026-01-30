@@ -1,0 +1,53 @@
+---
+title: Advanced configuration
+sidebarTitle: Advanced configuration
+description: Advanced configuration options for Geneva via GENEVA_ environment variables.
+icon: sliders
+---
+
+Geneva supports a set of advanced configuration options via `GENEVA_` environment variables.
+These are primarily intended for operators running Geneva in production (for example, in Kubernetes), and for tuning reliability under transient failures.
+
+<Warning>
+These settings can materially change job behavior (retries, timeouts, and failure modes). Only change them if you understand the operational impact, and prefer making changes in a staging environment first.
+</Warning>
+
+## Admission control
+
+Admission control governs how Geneva decides whether a job is allowed to start (or proceed) based on cluster / system conditions.
+
+| Environment variable | Default | Description |
+| --- | --- | --- |
+| `GENEVA_ADMISSION__CHECK` | `true` | Enable admission control checks. When enabled, Geneva performs pre-flight checks before starting work. |
+| `GENEVA_ADMISSION__STRICT` | `false` | If `true`, admission control failures are treated as hard errors. If `false`, Geneva may proceed (or degrade gracefully) depending on the failure. |
+| `GENEVA_ADMISSION__TIMEOUT` | `30` | Maximum time (in seconds) to wait for admission control checks to complete before timing out. |
+
+## Commit and retry configuration
+
+These settings control how Geneva retries higher-level operations such as committing results and handling version conflicts.
+
+| Environment variable | Default | Description |
+| --- | --- | --- |
+| `GENEVA_COMMIT_MAX_RETRIES` | `10` | Maximum number of retries for commit operations before failing the job. |
+| `GENEVA_VERSION_CONFLICT_MAX_RETRIES` | `20` | Maximum number of retries when a commit fails due to a version conflict (for example, concurrent writers). |
+| `GENEVA_WRITER_STALL_IDLE_ROUNDS` | `30` | Number of idle polling rounds Geneva will tolerate when a writer appears stalled before taking corrective action (for example, retrying or failing). |
+
+## Lance retry configuration
+
+These settings control retries around Lance / storage-layer operations. They are useful when the underlying object store or filesystem experiences transient errors.
+
+| Environment variable | Default | Description |
+| --- | --- | --- |
+| `GENEVA_RETRY_LANCE_ATTEMPTS` | `5` | Maximum number of attempts for Lance operations before giving up. |
+| `GENEVA_RETRY_LANCE_INITIAL_SECS` | `1` | Initial backoff delay (in seconds) before retrying a failed Lance operation. |
+| `GENEVA_RETRY_LANCE_MAX_SECS` | `60` | Maximum backoff delay (in seconds) between Lance retry attempts. |
+
+## Other configuration
+
+Additional operational settings.
+
+| Environment variable | Default | Description |
+| --- | --- | --- |
+| `GENEVA_RAY_INIT_MAX_RETRIES` | `10` | Maximum number of retries when initializing Ray (for example, connecting to a Ray cluster). |
+| `GENEVA_K8S_AUTH_MAX_RETRIES` | `10` | Maximum number of retries for Kubernetes authentication / API access during startup. |
+| `GENEVA_CONFIG_DIR` | *(unset)* | Optional directory path for Geneva configuration files. When set, Geneva will look here for additional config (for example, in containerized deployments). |
