@@ -231,6 +231,7 @@
                   "integrations/reranking/jina",
                   "integrations/reranking/linear_combination",
                   "integrations/reranking/openai",
+                  "integrations/reranking/mrr",
                   "integrations/reranking/rrf",
                   "integrations/reranking/voyageai"
                 ]
