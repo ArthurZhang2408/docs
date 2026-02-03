@@ -237,6 +237,13 @@ table
 Lance-based FTS doesn't support queries using boolean operators `OR`, `AND` in the search string.
 </Warning>
 
+<Note>
+**Phrase queries are single-column only.** You can use `PhraseQuery` against one column (e.g. `PhraseQuery("puppy runs", "text")`).
+Searching across multiple columns is supported with `MultiMatchQuery`, but it only supports term/match queries (not phrases).
+
+If you try to use a phrase query with multiple columns, the SDK will raise: `Phrase queries cannot be used with multiple columns.`
+</Note>
+
 For full-text search you can specify either a **phrase** query like `"the old man and the sea"`,
 or a **terms** search query like `old man sea`. 
 
