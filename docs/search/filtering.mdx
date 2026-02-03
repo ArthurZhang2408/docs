@@ -45,7 +45,11 @@ const table = await db.createTable(tableName, data, {
 
 ### Filtering Without Vector Search
 
-You can always filter your data without search. This is useful when you need to query based on metadata:
+You can always filter your data without search. This is useful when you need to query based on metadata.
+
+<Note>
+In the TypeScript/Node.js SDK, use `.onlyIf(...)` to apply a SQL filter. (In Python, the equivalent method is `.where(...)`.)
+</Note>
 
 <CodeGroup>
 ```python Python icon="python"
@@ -60,7 +64,7 @@ filtered_no_search_result = (
 ```typescript TypeScript icon="square-js"
 const filteredResult = await table
   .query()
-  .where("(item IN ('foo', 'bar', 'baz')) AND (price > 15.0)")
+  .onlyIf("(item IN ('foo', 'bar', 'baz')) AND (price > 15.0)")
   .limit(3)
   .toArray();
 ```
@@ -85,7 +89,7 @@ filtered_result = (
 ```typescript TypeScript icon="square-js"
 const results = await table
   .search([100, 102])
-  .where("(item IN ('foo', 'bar')) AND (price > 15.0)")
+  .onlyIf("(item IN ('foo', 'bar')) AND (price > 15.0)")
   .toArray();
 ```
 </CodeGroup>
@@ -104,7 +108,7 @@ post_filtered_result = (
 
 ```typescript TypeScript icon="square-js"
 const postFilteredResult = await (table.search([100, 102]) as VectorQuery)
-  .where("(item IN ('foo', 'bar')) AND (price > 15.0)")
+  .onlyIf("(item IN ('foo', 'bar')) AND (price > 15.0)")
   .postfilter()
   .limit(3)
   .toArray();
@@ -147,7 +151,7 @@ tbl.search([100, 102]).where(
 ```typescript TypeScript icon="square-js"
 await table
   .search([100, 102])
-  .where("(item IN ('foo', 'baz')) AND (price > 20.0)")
+  .onlyIf("(item IN ('foo', 'baz')) AND (price > 20.0)")
   .toArray();
 ```
 </CodeGroup>
