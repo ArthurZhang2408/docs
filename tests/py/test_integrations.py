@@ -633,6 +633,45 @@ def test_embedding_voyageai_multimodal() -> None:
     # --8<-- [end:embedding_voyageai_multimodal]
 
 
+def test_embedding_xtr_usage() -> None:
+    require_env("VOYAGE_API_KEY")
+
+    # --8<-- [start:embedding_xtr_usage]
+    import tempfile
+    from pathlib import Path
+
+    import lancedb
+    from lancedb.embeddings import EmbeddingFunctionRegistry
+    from lancedb.pydantic import LanceModel, MultiVector
+
+    # XTR uses VoyageAI's hosted model `voyage-context-3`
+    xtr = (
+        EmbeddingFunctionRegistry.get_instance()
+        .get("voyageai")
+        .create(name="voyage-context-3")
+    )
+
+    class Docs(LanceModel):
+        text: str = xtr.SourceField()
+        vector: MultiVector(xtr.ndims()) = xtr.VectorField()
+
+    db = lancedb.connect(str(Path(tempfile.mkdtemp()) / "xtr-demo"))
+    tbl = db.create_table("docs", schema=Docs, mode="overwrite")
+
+    # Each row is a chunk/window of text you want to retrieve over
+    tbl.add(
+        [
+            {"text": "The quick brown fox jumps over the lazy dog"},
+            {"text": "LanceDB supports multivector search for late interaction models"},
+        ]
+    )
+
+    # Query with natural language; LanceDB will embed it using XTR and run MaxSim
+    results = tbl.search("What does LanceDB support?").limit(3).to_list()
+    print(results)
+    # --8<-- [end:embedding_xtr_usage]
+
+
 # Reranking integrations
 
 

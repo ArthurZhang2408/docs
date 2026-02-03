@@ -15,7 +15,9 @@ In this tutorial, you'll create a table with multiple vector embeddings per docu
 
 Each item in your dataset can have a column containing multiple vectors, which LanceDB can efficiently index and search. When performing a search, you can query using either a single vector embedding or multiple vector embeddings. 
 
-LanceDB also integrates with [ConteXtualized Token Retriever (XTR)](https://arxiv.org/abs/2304.01982), an advanced retrieval model that prioritizes the most semantically important document tokens during search. This integration enhances the quality of search results by focusing on the most relevant token matches.
+LanceDB also integrates with [ConteXtualized Token Retriever (XTR)](https://arxiv.org/abs/2304.01982), an advanced retrieval model that prioritizes the most semantically important document tokens during search.
+
+XTR is provided via the VoyageAI integration (model `voyage-context-3`). See [XTR with VoyageAI](/integrations/embedding/xtr) for setup, usage, and an example that combines XTR with multivector search.
 
 <Tip>
 - Currently, only the `cosine` metric is supported for multivector search.

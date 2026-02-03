@@ -1,0 +1,50 @@
+---
+title: "XTR (ConteXtualized Token Retriever)"
+sidebarTitle: "XTR"
+description: "Use VoyageAI's voyage-context-3 model with LanceDB for contextualized token retrieval (XTR) and multivector search."
+icon: "magnifying-glass"
+---
+
+import { PyEmbeddingXtrUsage } from '/snippets/integrations.mdx';
+
+XTR (ConteXtualized Token Retriever) is a *late interaction* retrieval approach where queries and documents are represented as **multiple token-level vectors** (a multivector), and scoring is performed using MaxSim.
+
+In LanceDB, XTR is implemented as a thin wrapper around **VoyageAI's hosted XTR API** (the `contextualized_embed` endpoint) using the VoyageAI model `voyage-context-3`.
+
+<Warning>
+XTR embeddings are computed **server-side on VoyageAI's infrastructure**. LanceDB does not run the XTR model locally.
+</Warning>
+
+## Requirements
+
+- A VoyageAI API key (set `VOYAGE_API_KEY`)
+- The `voyageai` Python package (`pip install voyageai`)
+- The VoyageAI model `voyage-context-3`
+
+## Usage
+
+The XTR embedding function produces **multivectors**, so your schema should use `MultiVector(...)`.
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyEmbeddingXtrUsage}
+  </CodeBlock>
+</CodeGroup>
+
+## Context windows (optional)
+
+XTR works best when each embedded “document” is a focused chunk of text.
+
+If your source data is tokenized (one token per row), LanceDB also provides a `contextualize(...)` utility to build rolling windows (for example: `"The quick brown"`, `"quick brown fox"`, ...). This preprocessing step is **separate** from embedding.
+
+<Note>
+The `contextualize(...)` utility is optional. You can use any chunking strategy (sentences, paragraphs, fixed-size chunks) as long as you embed each chunk as a separate document.
+</Note>
+
+## How it works
+
+- **Queries** are embedded with VoyageAI using `input_type="query"`.
+- **Documents** are embedded with VoyageAI using `input_type="document"`.
+- The result is a multivector per input text, which LanceDB can store in a `MultiVector` column and search using MaxSim.
+
+For more details on the underlying model, see the [XTR paper](https://arxiv.org/abs/2304.01982) and the [VoyageAI docs](https://docs.voyageai.com/).
