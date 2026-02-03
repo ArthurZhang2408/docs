@@ -9,8 +9,33 @@ import { PyRerankingColbertUsage } from '/snippets/integrations.mdx';
 
 # ColBERT Reranker
 
-This reranker uses ColBERT model to rerank the search results. You can use this reranker by passing `ColbertReranker()` to the `rerank()` method. 
-> **Note:** Supported query types – Hybrid, Vector, and FTS.
+This reranker uses ColBERT model to rerank the search results. You can use this reranker by passing `ColbertReranker()` to the `rerank()` method.
+
+> **Note:** Supported query types – Hybrid, Vector, FTS, and Multivector.
+
+## Multivector search
+
+`ColbertReranker` also supports reranking results from multiple vector searches at once via `rerank_multivector()`.
+
+This is useful when you search across multiple embedding columns (for example, `vector` and `meta_vector`) and want a single reranked result set.
+
+<Warning>
+When using `deduplicate=True`, each input result set must include row IDs (otherwise deduplication will fail). Add row IDs to each search with `.with_row_id(True)`.
+</Warning>
+
+<CodeGroup>
+```python Python icon="python"
+from lancedb.rerankers import ColbertReranker
+
+reranker = ColbertReranker()
+query = "hello"
+
+rs1 = table.search(query, vector_column_name="vector").limit(10).with_row_id(True)
+rs2 = table.search(query, vector_column_name="meta_vector").limit(10).with_row_id(True)
+
+reranked = reranker.rerank_multivector([rs1, rs2], query, deduplicate=True)
+```
+</CodeGroup>
 
 
 <CodeGroup>
