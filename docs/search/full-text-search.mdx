@@ -516,6 +516,12 @@ const fuzzyResults = await table.query()
 
 ### Phrase Match
 
+<Warning>
+**Node.js / TypeScript limitation:** Phrase queries cannot be performed across multiple columns simultaneously.
+
+In the Node.js SDK, `PhraseQuery` accepts a single `column` (e.g. `new PhraseQuery("puppy runs", "text")`). If you need phrase matching across multiple fields, run separate phrase queries per column and merge results in your application, or use a different SDK that supports multi-column phrase queries.
+</Warning>
+
 Phrase matching enables you to search for exact sequences of words. Unlike regular text search 
 which matches individual terms independently, phrase matching requires words to appear in the 
 specified order with no intervening terms. 
