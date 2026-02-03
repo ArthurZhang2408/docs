@@ -446,6 +446,14 @@ Clearly, the strongest characters are all Knights of the Round Table!
 ## SQL queries using DuckDB
 <Badge color="green">Python Only</Badge>
 
+<Warning>
+`table.to_arrow()` (and `table.to_pandas()`) are only supported for **local** tables.
+When connected to **LanceDB Cloud / remote tables**, these methods raise `NotImplementedError`.
+
+For remote tables, use `table.search(...).to_arrow()` / `table.search(...).to_pandas()` to
+materialize query results instead of exporting the entire table.
+</Warning>
+
 You can leverage a full SQL engine like DuckDB to run more complex queries that involve
 sorting, aggregations, joins, etc. To do this, you convert the LanceDB tables to an Arrow table,
 which can be natively queried by DuckDB.

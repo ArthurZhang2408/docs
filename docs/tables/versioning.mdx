@@ -96,6 +96,8 @@ First, let's get the data we want to embed:
 import pyarrow as pa
 
 # Get data from table
+# Note: `table.to_pandas()` is not supported for remote tables (LanceDB Cloud).
+# Use `table.search(...).to_pandas()` to materialize query results instead.
 df = table.search().limit(5).to_pandas()
 ```
 
