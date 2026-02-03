@@ -148,6 +148,12 @@ applications, you'd generate these vectors from the raw text fields using a suit
 
 We start by connecting to a LanceDB database path.
 
+LanceDB supports three kinds of connection URIs:
+
+- **Local paths** (e.g. `"/tmp/my-db"` or `"data/my-db"`)
+- **LanceDB Cloud / Enterprise** via `db://...` URIs
+- **Direct object storage URIs** like `s3://...`, `gs://...`, or `az://...` (connect directly to your own bucket/container)
+
 <CodeGroup>
     <CodeBlock filename="Python" language="Python" icon="Python">
     {PyConnect}
@@ -164,6 +170,14 @@ We start by connecting to a LanceDB database path.
 
 If you're using LanceDB Cloud or Enterprise, replace the local connection string
 with the appropriate remote URI and authentication details.
+
+If you want LanceDB to store data directly in your own cloud object storage, you can also connect using an object storage URI:
+
+- `s3://<bucket>/<path>` (Amazon S3 and S3-compatible stores)
+- `gs://<bucket>/<path>` (Google Cloud Storage)
+- `az://<container>/<path>` (Azure Blob Storage)
+
+See [Storage options](/storage/) for examples including `storage_options` / `storageOptions`.
 
 <CodeGroup>
     <CodeBlock filename="Python" language="Python" icon="Python">
