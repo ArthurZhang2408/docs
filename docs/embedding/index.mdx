@@ -17,6 +17,12 @@ you to focus on your application logic.
 
 ## Embedding Registry
 
+<Warning>
+The Rust SDK requires **manual registration** of embedding functions with the connection's embedding registry before you can reference them in a table definition.
+
+Python and Node.js register embedding functions automatically when you import/use the provider integration, but in Rust you must call `db.embedding_registry().register(...)` first, and the `embedding_name` you pass to `EmbeddingDefinition::new(...)` must match the name you registered.
+</Warning>
+
 <Badge color="green">OSS</Badge>
 
 In LanceDB OSS, you can get a supported embedding function from the registry, and then use it in your table schema. 

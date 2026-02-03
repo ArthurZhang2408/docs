@@ -109,6 +109,33 @@ The search process:
 3. Returns the matching documents
 
 
+## Rust: manual embedding registration
+
+<Warning>
+In the Rust SDK, embedding functions must be registered on the database connection before they can be used in table definitions.
+
+If you follow the Python/TypeScript examples verbatim in Rust (without registration), table creation will fail because the `embedding_name` in `EmbeddingDefinition` must refer to a previously registered embedding function.
+</Warning>
+
+```rust Rust icon="rust"
+// 1) Create your embedding function (example: OpenAI)
+// 2) Register it on the connection
+// 3) Reference it by name in EmbeddingDefinition
+
+db.embedding_registry()
+    .register("openai", embedding.clone())?;
+
+let table = db
+    .create_table("words", data)
+    .add_embedding(EmbeddingDefinition::new(
+        "text",      // source column
+        "openai",    // embedding_name (must match the registered name)
+        Some("embeddings"), // destination vector column
+    ))?
+    .execute()
+    .await?;
+```
+
 ## Examples
 
 LanceDB currently supports the via SDKs in [Python, Typescript and Rust](/api-reference/).
