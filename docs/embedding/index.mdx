@@ -73,8 +73,29 @@ Other arguments are provider-specific. Common arguments include the following:
 | Argument | Type | Description |
 | --- | --- | --- |
 | `batch_size` | `int` | The number of inputs to process in a single batch. Provider-specific. |
-| `api_key` | `str` | The API key for the embedding provider. Can also be set via environment variables. |
+| `api_key` | `str` | The API key for the embedding provider. **Must be provided as a secure variable reference** (e.g. `api_key="$var:OPENAI_API_KEY"`) or via the provider's own environment variable support. Hardcoding secrets will raise an error. |
 | `device` | `str` | The device to run the model on (e.g., "cpu", "cuda"). Defaults to automatic detection. |
+
+<Warning>
+Do not hardcode secrets (for example `api_key="sk-..."`) when creating embedding functions. LanceDB validates certain fields as *sensitive* and will raise an error unless the value is a secure variable reference of the form `"$var:ENV_VAR_NAME"`.
+
+Example:
+
+```python
+import os
+
+# Set in your shell, CI, or secrets manager
+# export OPENAI_API_KEY=...
+
+func = get_registry().get("openai").create(
+    name="text-embedding-3-small",
+    api_key="$var:OPENAI_API_KEY",
+)
+
+# LanceDB will read the value from the environment at runtime.
+assert os.environ["OPENAI_API_KEY"]
+```
+</Warning>
 
 Find the full list of arguments for each provider in the [integrations](/integrations/embedding) section.
 

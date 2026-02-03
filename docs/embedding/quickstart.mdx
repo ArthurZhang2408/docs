@@ -45,7 +45,7 @@ Choose and configure your embedding model:
 
 <CodeGroup>
 ```python Python icon="python"
-model = get_registry().get("sentence-transformers").create(name="BAAI/bge-small-en-v1.5", )
+model = get_registry().get("sentence-transformers").create(name="BAAI/bge-small-en-v1.5")
 ```
 </CodeGroup>
 
@@ -53,6 +53,10 @@ This creates a Sentence Transformers embedding function using the BGE model. You
 - Change `"sentence-transformers"` to other providers like `"openai"`, `"cohere"`, etc.
 - Modify the model name for different embedding models
 - Set `device="cuda"` for GPU acceleration if available
+
+<Warning>
+If you pass provider credentials (for example `api_key`) to `.create(...)`, LanceDB requires them to be provided as a **secure variable reference** like `api_key="$var:OPENAI_API_KEY"`. Hardcoding secrets directly (e.g. `api_key="sk-..."`) will raise an error.
+</Warning>
 
 ## Step 4: Define Your Schema
 
