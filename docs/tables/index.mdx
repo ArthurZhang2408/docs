@@ -447,7 +447,17 @@ Clearly, the strongest characters are all Knights of the Round Table!
 <Badge color="green">Python Only</Badge>
 
 You can leverage a full SQL engine like DuckDB to run more complex queries that involve
-sorting, aggregations, joins, etc. To do this, you convert the LanceDB tables to an Arrow table,
+sorting, aggregations, joins, etc.
+
+<Info>
+When using **remote tables** (for example, LanceDB Cloud / Enterprise), `table.to_arrow()` and
+`table.to_pandas()` are not currently supported.
+
+If you need to query remote data with DuckDB, fetch results via `table.search(...).to_arrow()`
+(or `...to_pandas()`) instead of converting the entire table.
+</Info>
+
+To do this with a local table, you can convert the LanceDB table to an Arrow table,
 which can be natively queried by DuckDB.
 
 <CodeGroup>
