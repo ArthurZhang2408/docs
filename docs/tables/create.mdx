@@ -201,6 +201,21 @@ batches.
 
 An empty table can be initialized via a PyArrow schema.
 
+<Warning title="Rust SDK limitation: embedding configuration is not applied for empty tables">
+The Rust SDK currently cannot configure embedding columns when creating an empty table from a schema.
+
+- `create_empty_table(name, schema)` will create the table, but any embedding metadata is lost.
+- Calling `.add_embedding(...)` on the builder has **no effect** for empty tables.
+
+This happens because the Rust implementation builds the table definition from the provided Arrow schema and marks all
+columns as *physical*, which erases embedding metadata.
+
+If you need embedding columns in Rust today, you must use a workaround (for example: create the table with data first,
+or create the table in Python and then open it from Rust).
+
+Tracking issue: https://github.com/lancedb/lancedb/issues/2759
+</Warning>
+
 <CodeGroup>
     <CodeBlock filename="Python" language="Python" icon="python">
     {CreateEmptyTable}
