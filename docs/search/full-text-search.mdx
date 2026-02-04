@@ -240,10 +240,6 @@ Lance-based FTS doesn't support queries using boolean operators `OR`, `AND` in t
 For full-text search you can specify either a **phrase** query like `"the old man and the sea"`,
 or a **terms** search query like `old man sea`.
 
-<Note>
-Phrase queries are **single-column**: they cannot be combined with multi-column full-text search (for example, a `MultiMatchQuery` across multiple columns). If you need phrase matching, run a `PhraseQuery` against one column at a time.
-</Note>
-
 To search for a phrase, the index must be created with `with_position=True` and `remove_stop_words=False`:
 
 <CodeGroup>
@@ -527,8 +523,23 @@ specified order with no intervening terms.
 Phrase matching is particularly useful for:
 
 - Searching for specific multi-word expressions
-- Matching exact titles or quotes  
+- Matching exact titles or quotes
 - Finding precise word combinations in a specific order
+
+<Note>
+Phrase queries are **single-column only** and cannot be used with `MultiMatchQuery`. If you need phrase matching across multiple columns, run separate `PhraseQuery` calls on each column and combine the results using a `BooleanQuery` with `Occur.Should` (OR logic):
+
+```python
+from lancedb.query import PhraseQuery, BooleanQuery, Occur
+
+# Search for phrase in either "title" or "content" columns
+query = BooleanQuery([
+    (Occur.Should, PhraseQuery("machine learning", "title")),
+    (Occur.Should, PhraseQuery("machine learning", "content")),
+])
+results = table.search(query).limit(100).to_pandas()
+```
+</Note>
 
 <CodeGroup>
 ```python Python icon="python"
