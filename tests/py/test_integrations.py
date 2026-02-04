@@ -753,6 +753,43 @@ def test_reranking_colbert_usage() -> None:
     # --8<-- [end:reranking_colbert_usage]
 
 
+def test_reranking_colbert_multivector() -> None:
+    require_flag("RUN_RERANKER_SNIPPETS")
+
+    # --8<-- [start:reranking_colbert_multivector]
+    import lancedb
+    from lancedb.embeddings import get_registry
+    from lancedb.pydantic import LanceModel, Vector
+    from lancedb.rerankers import ColbertReranker
+
+    embedder = get_registry().get("sentence-transformers").create()
+    db = lancedb.connect("~/.lancedb")
+
+    class Schema(LanceModel):
+        text: str = embedder.SourceField()
+        meta: str = embedder.SourceField()
+        vector: Vector(embedder.ndims()) = embedder.VectorField()
+        meta_vector: Vector(embedder.ndims()) = embedder.VectorField(source_column="meta")
+
+    data = [
+        {"text": "hello world", "meta": "greeting message"},
+        {"text": "goodbye world", "meta": "farewell message"},
+    ]
+    tbl = db.create_table("test", schema=Schema, mode="overwrite")
+    tbl.add(data)
+
+    reranker = ColbertReranker()
+    query = "hello"
+
+    # Search across multiple vector columns and get results with row IDs
+    rs1 = tbl.search(query, vector_column_name="vector").limit(10).with_row_id(True)
+    rs2 = tbl.search(query, vector_column_name="meta_vector").limit(10).with_row_id(True)
+
+    # Rerank the combined results
+    reranked = reranker.rerank_multivector([rs1, rs2], query, deduplicate=True)
+    # --8<-- [end:reranking_colbert_multivector]
+
+
 def test_reranking_cross_encoder_usage() -> None:
     require_flag("RUN_RERANKER_SNIPPETS")
 

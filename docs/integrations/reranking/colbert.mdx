@@ -5,7 +5,7 @@ description: Enhance search results with ColBERT's contextual reranking in Lance
 
 ---
 
-import { PyRerankingColbertUsage } from '/snippets/integrations.mdx';
+import { PyRerankingColbertUsage, PyRerankingColbertMultivector } from '/snippets/integrations.mdx';
 
 # ColBERT Reranker
 
@@ -24,17 +24,9 @@ When using `deduplicate=True`, each input result set must include row IDs (other
 </Warning>
 
 <CodeGroup>
-```python Python icon="python"
-from lancedb.rerankers import ColbertReranker
-
-reranker = ColbertReranker()
-query = "hello"
-
-rs1 = table.search(query, vector_column_name="vector").limit(10).with_row_id(True)
-rs2 = table.search(query, vector_column_name="meta_vector").limit(10).with_row_id(True)
-
-reranked = reranker.rerank_multivector([rs1, rs2], query, deduplicate=True)
-```
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyRerankingColbertMultivector}
+  </CodeBlock>
 </CodeGroup>
 
 
