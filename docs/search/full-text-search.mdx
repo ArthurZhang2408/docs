@@ -238,7 +238,11 @@ Lance-based FTS doesn't support queries using boolean operators `OR`, `AND` in t
 </Warning>
 
 For full-text search you can specify either a **phrase** query like `"the old man and the sea"`,
-or a **terms** search query like `old man sea`. 
+or a **terms** search query like `old man sea`.
+
+<Note>
+Phrase queries are **single-column**: they cannot be combined with multi-column full-text search (for example, a `MultiMatchQuery` across multiple columns). If you need phrase matching, run a `PhraseQuery` against one column at a time.
+</Note>
 
 To search for a phrase, the index must be created with `with_position=True` and `remove_stop_words=False`:
 
