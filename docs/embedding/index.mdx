@@ -5,6 +5,8 @@ description: "Use the embedding API in LanceDB -- registry, functions, schemas, 
 icon: "bars"
 ---
 
+import { RsCreateEmptyTableWithEmbedding } from '/snippets/embedding.mdx';
+
 Modern machine learning models can be trained to convert raw data into embeddings, which are vectors
 of floating point numbers. The position of an embedding in vector space captures the semantics of
 the data, so vectors that are close to each other are considered similar.
@@ -16,6 +18,17 @@ generation is currently only supported in LanceDB OSS. The API abstracts embeddi
 you to focus on your application logic.
 
 ## Embedding Registry
+
+<Note>
+In the Rust SDK, you can attach embedding definitions when creating an empty table using the builder returned by `create_empty_table(...)`.
+</Note>
+
+<CodeGroup>
+  <CodeBlock filename="Rust" language="Rust" icon="rust">
+    {RsCreateEmptyTableWithEmbedding}
+  </CodeBlock>
+</CodeGroup>
+
 
 <Badge color="green">OSS</Badge>
 

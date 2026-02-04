@@ -18,3 +18,5 @@ export const TsOpenaiEmbeddings = "const db = await lancedb.connect(databaseDir)
 
 export const TsRegisterSecret = "const registry = getRegistry();\nregistry.setVar(\"api_key\", \"sk-...\");\n\nconst func = registry.get(\"openai\")!.create({\n  apiKey: \"$var:api_key\",\n});\n";
 
+export const RsCreateEmptyTableWithEmbedding = "async fn create_empty_table_with_embedding(uri: &str) -> Result<()> {\n    let db = connect(uri).execute().await?;\n\n    let (schema, embedding_definition) = make_schema_with_embedding();\n\n    let _table = db\n        .create_empty_table(\"test\", schema)\n        .mode(CreateTableMode::Overwrite)\n        .add_embedding(embedding_definition)\n        .execute()\n        .await?;\n\n    Ok(())\n}\n";
+
