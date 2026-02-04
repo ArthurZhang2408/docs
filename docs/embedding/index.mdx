@@ -5,6 +5,8 @@ description: "Use the embedding API in LanceDB -- registry, functions, schemas, 
 icon: "bars"
 ---
 
+import { RsRsCreateEmptyTableWithEmbeddings } from '/snippets/create_empty_table_embeddings.mdx';
+
 Modern machine learning models can be trained to convert raw data into embeddings, which are vectors
 of floating point numbers. The position of an embedding in vector space captures the semantics of
 the data, so vectors that are close to each other are considered similar.
@@ -107,6 +109,16 @@ Currently, the embedding registry on LanceDB <Badge color="purple">Cloud</Badge>
 <Badge color="red">Enterprise</Badge> supports automatic generation of embeddings during data ingestion,
 generated on the client side (and stored on the remote table). We don't yet support automatic query-time
 embedding generation when sending queries, though this is planned for a future release.
+
+## Rust: create_empty_table with embeddings
+
+In the Rust SDK, you can attach embedding definitions when creating an empty table using the builder pattern.
+
+<CodeGroup>
+  <CodeBlock filename="Rust" language="Rust" icon="rust">
+    {RsRsCreateEmptyTableWithEmbeddings}
+  </CodeBlock>
+</CodeGroup>
 
 For now, you can manually generate the embeddings at query time using the same embedding function that
 was used during ingestion, and pass the embeddings to the search function.
