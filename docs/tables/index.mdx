@@ -167,11 +167,11 @@ with the appropriate remote URI and authentication details.
 
 <Info>
 When you connect to a remote URI (Cloud/Enterprise), `open_table(...)` returns a *remote* table.
-Remote tables support the core operations (ingest, search, update/delete), but some local-only
-convenience methods are not available.
+Remote tables support core operations (ingest, search, update, delete), but some convenience
+methods for bulk data export are not available.
 
-In particular, in the Python SDK `RemoteTable.to_arrow()` and `RemoteTable.to_pandas()` are not
-implemented.
+In the Python SDK, `table.to_arrow()` and `table.to_pandas()` are not implemented for remote tables.
+To retrieve data, use search queries instead: `table.search(query).limit(n).to_arrow()`.
 </Info>
 
 <CodeGroup>
@@ -460,8 +460,9 @@ sorting, aggregations, joins, etc. To do this, you convert the LanceDB tables to
 which can be natively queried by DuckDB.
 
 <Note>
-This workflow applies to local (embedded) tables. In the Python SDK, remote tables (Cloud/Enterprise)
-do not currently support `to_arrow()` / `to_pandas()`.
+This workflow applies to local (embedded) tables only. In the Python SDK, remote tables (Cloud/Enterprise)
+do not support `to_arrow()` or `to_pandas()`. To retrieve data from remote tables, use search queries
+with `.to_arrow()` on the results.
 </Note>
 
 <CodeGroup>
