@@ -7,6 +7,7 @@ keywords: ["create table", "polars", "pandas", "pyarrow", "dataframe", "nested d
 ---
 
 import { PyConnect, PyConnectCloud, TsConnect, TsConnectCloud, RsConnect, RsConnectCloud } from '/snippets/connection.mdx';
+import { PyStorageConnectS3, PyStorageConnectGcs, PyStorageConnectAzure, TsStorageConnectS3, TsStorageConnectGcs, TsStorageConnectAzure } from '/snippets/storage.mdx';
 import {
     PyBasicImports,
     PyDataLoad,
@@ -171,14 +172,6 @@ LanceDB supports three kinds of connection URIs:
 If you're using LanceDB Cloud or Enterprise, replace the local connection string
 with the appropriate remote URI and authentication details.
 
-If you want LanceDB to store data directly in your own cloud object storage, you can also connect using an object storage URI:
-
-- `s3://<bucket>/<path>` (Amazon S3 and S3-compatible stores)
-- `gs://<bucket>/<path>` (Google Cloud Storage)
-- `az://<container>/<path>` (Azure Blob Storage)
-
-See [Storage options](/storage/) for examples including `storage_options` / `storageOptions`.
-
 <CodeGroup>
     <CodeBlock filename="Python" language="Python" icon="Python">
     {PyConnectCloud}
@@ -190,6 +183,38 @@ See [Storage options](/storage/) for examples including `storage_options` / `sto
 
     <CodeBlock filename="Rust" language="Rust" icon="rust">
     {RsConnectCloud}
+    </CodeBlock>
+</CodeGroup>
+
+To store data directly in your own cloud object storage, connect using an object storage URI. See [Storage configuration](/storage/configuration) for authentication options.
+
+<CodeGroup>
+    <CodeBlock filename="Python (S3)" language="Python" icon="python">
+    {PyStorageConnectS3}
+    </CodeBlock>
+
+    <CodeBlock filename="TypeScript (S3)" language="TypeScript" icon="square-js">
+    {TsStorageConnectS3}
+    </CodeBlock>
+</CodeGroup>
+
+<CodeGroup>
+    <CodeBlock filename="Python (GCS)" language="Python" icon="python">
+    {PyStorageConnectGcs}
+    </CodeBlock>
+
+    <CodeBlock filename="TypeScript (GCS)" language="TypeScript" icon="square-js">
+    {TsStorageConnectGcs}
+    </CodeBlock>
+</CodeGroup>
+
+<CodeGroup>
+    <CodeBlock filename="Python (Azure)" language="Python" icon="python">
+    {PyStorageConnectAzure}
+    </CodeBlock>
+
+    <CodeBlock filename="TypeScript (Azure)" language="TypeScript" icon="square-js">
+    {TsStorageConnectAzure}
     </CodeBlock>
 </CodeGroup>
 
