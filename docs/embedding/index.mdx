@@ -5,7 +5,7 @@ description: "Use the embedding API in LanceDB -- registry, functions, schemas, 
 icon: "bars"
 ---
 
-import { RsRsCreateEmptyTableWithEmbeddings } from '/snippets/create_empty_table_embeddings.mdx';
+import { RsCreateEmptyTableWithEmbeddings } from '/snippets/basic_usage.mdx';
 
 Modern machine learning models can be trained to convert raw data into embeddings, which are vectors
 of floating point numbers. The position of an embedding in vector space captures the semantics of
@@ -59,6 +59,10 @@ print(results)
 # 0                     This is a test.  [0.0123, -0.0456, ..., 0.0789]  0.123456
 # 1                     Another example.  [0.0234, -0.0567, ..., 0.0890]  0.234567
 ```
+
+<CodeBlock filename="Rust" language="Rust" icon="rust">
+{RsCreateEmptyTableWithEmbeddings}
+</CodeBlock>
 </CodeGroup>
 
 ### Using an embedding function
@@ -109,44 +113,6 @@ Currently, the embedding registry on LanceDB <Badge color="purple">Cloud</Badge>
 <Badge color="red">Enterprise</Badge> supports automatic generation of embeddings during data ingestion,
 generated on the client side (and stored on the remote table). We don't yet support automatic query-time
 embedding generation when sending queries, though this is planned for a future release.
-
-## Rust: create_empty_table with embeddings
-
-In the Rust SDK, you can attach embedding definitions when creating an empty table using the builder pattern.
-
-<CodeGroup>
-  <CodeBlock filename="Rust" language="Rust" icon="rust">
-    {RsRsCreateEmptyTableWithEmbeddings}
-  </CodeBlock>
-</CodeGroup>
-
-For now, you can manually generate the embeddings at query time using the same embedding function that
-was used during ingestion, and pass the embeddings to the search function.
-
-<CodeGroup>
-```python Python icon="python"
-import lancedb
-from lancedb.embeddings import get_registry
-from lancedb.pydantic import LanceModel, Vector
-
-db = lancedb.connect(...)
-func = get_registry().get("sentence-transformers").create()
-
-class MySchema(LanceModel):
-    text: str = func.SourceField()
-    vector: Vector(func.ndims()) = func.VectorField()
-
-table = db.create_table("mytable", schema=MySchema)
-table.add([
-    {"text": "This is a test."},
-    {"text": "Another example."}
-])
-
-# Manually generate embeddings for the query
-query_vector = func.generate_embeddings(["test example"])[0]
-results = table.search(query_vector).limit(5).to_pandas()
-```
-</CodeGroup>
 
 ## Custom Embedding Functions
 

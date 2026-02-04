@@ -346,3 +346,56 @@ async fn main() {
     db.drop_table("camelot", &[]).await.unwrap();
     // --8<-- [end:basic_drop_table]
 }
+
+// --8<-- [start:create_empty_table_with_embeddings]
+use std::iter::once;
+use lancedb::embeddings::{
+    sentence_transformers::SentenceTransformersEmbeddings, EmbeddingDefinition, EmbeddingFunction,
+};
+use lancedb::arrow::IntoArrow;
+
+async fn create_empty_table_with_embeddings() -> lancedb::Result<()> {
+    // Create the embedding function
+    let embedding = SentenceTransformersEmbeddings::builder().build()?;
+    let embedding = Arc::new(embedding);
+
+    // Connect to database
+    let tempdir = tempfile::tempdir().unwrap();
+    let db = connect(tempdir.path().to_str().unwrap()).execute().await?;
+
+    // Register embedding function in the registry
+    db.embedding_registry()
+        .register("sentence-transformers", embedding.clone())?;
+
+    // Define schema with text field (embeddings will be auto-generated)
+    let schema = Arc::new(Schema::new(vec![Field::new("text", DataType::Utf8, false)]));
+
+    // Create empty table with embedding definition
+    let table = db
+        .create_empty_table("my_table", schema)
+        .add_embedding(EmbeddingDefinition::new(
+            "text",                    // source column
+            "sentence-transformers",   // registered embedding function
+            Some("vector"),            // vector column name
+        ))?
+        .execute()
+        .await?;
+
+    // Add data - embeddings are generated automatically
+    fn make_embedding_data() -> impl IntoArrow {
+        let schema = Arc::new(Schema::new(vec![Field::new("text", DataType::Utf8, false)]));
+        let texts = StringArray::from_iter_values(vec!["hello world", "goodbye world"]);
+        let rb = RecordBatch::try_new(schema.clone(), vec![Arc::new(texts)]).unwrap();
+        Box::new(RecordBatchIterator::new(vec![Ok(rb)], schema))
+    }
+    table.add(make_embedding_data()).execute().await?;
+
+    // Query the table
+    let query = Arc::new(StringArray::from_iter_values(once("greetings")));
+    let query_vector = embedding.compute_query_embeddings(query)?;
+    let mut results = table.vector_search(query_vector)?.limit(1).execute().await?;
+    let rb = results.next().await.unwrap()?;
+    println!("{:?}", rb);
+    Ok(())
+}
+// --8<-- [end:create_empty_table_with_embeddings]
