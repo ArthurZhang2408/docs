@@ -1,0 +1,52 @@
+---
+title: MRR Reranker for Hybrid and Multivector Search
+sidebarTitle: "MRR Reranker"
+description: Documenting the MRRReranker class for LanceDB hybrid and multivector search.
+
+---
+
+import { PyRerankingMrrUsage } from '/snippets/integrations.mdx';
+
+# MRR Reranker
+
+The MRR Reranker uses the Mean Reciprocal Rank (MRR) algorithm to rerank search results. This algorithm is particularly useful for combining results from multiple ranking systems, such as vector and full-text search, by calculating the average of reciprocal ranks.
+
+## When to Use MRR vs RRF
+
+Use MRR when you need to combine search results from different sources and want a balanced way to merge these results. MRR is particularly effective in scenarios where the ranking position of results is crucial. In contrast, RRF is a simpler method that might be preferred when computational efficiency is a priority.
+
+## Configuring Weights
+
+The MRRReranker allows you to configure the weights assigned to vector and full-text search results. By default, both are set to 0.5, but you can adjust these to prioritize one type of search over the other. Ensure that the sum of `weight_vector` and `weight_fts` equals 1.0.
+
+Accepted Arguments
+----------------
+| Argument | Type | Default | Description |
+| --- | --- | --- | --- |
+| `weight_vector` | `float` | `0.5` | Weight for vector search results (0.0 to 1.0). |
+| `weight_fts` | `float` | `0.5` | Weight for FTS search results (0.0 to 1.0). |
+| `return_score` | `str` | `"relevance"` | Options are "relevance" or "all". The type of score to return. If "relevance", will return only the `_relevance_score`. If "all", will return all scores from the vector and FTS search along with the relevance score. |
+
+**Note:** `weight_vector` + `weight_fts` must equal 1.0.
+
+## Supported Scores for Each Query Type
+
+Specify the type of scores you want the reranker to return. The following are the supported scores for each query type:
+
+### Hybrid Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` | ✔ Supported | Results only have the `_relevance_score` column. |
+| `all` | ✔ Supported | Results have vector(`_distance`) and FTS(`score`) along with Hybrid Search score(`_relevance_score`). |
+
+### Multivector Search
+|`return_score`| Status | Description |
+| --- | --- | --- |
+| `relevance` | ✔ Supported | Results only have the `_relevance_score` column. |
+| `all` | ✔ Supported | Results have vector distances from all searches along with `_relevance_score`. |
+
+<CodeGroup>
+  <CodeBlock filename="Python" language="Python" icon="python">
+    {PyRerankingMrrUsage}
+  </CodeBlock>
+</CodeGroup>
