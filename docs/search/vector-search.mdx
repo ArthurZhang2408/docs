@@ -37,6 +37,7 @@ By default, `l2` will be used as metric type. You can specify the metric type as
 
 <CodeGroup>
 ```python Python icon="python"
+# Updated example with better documentation
 tbl.search(np.random.random((1536))).distance_type("cosine").limit(10).to_list()
 ```
 
