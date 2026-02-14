@@ -240,6 +240,10 @@ enable both `when_matched_update_all()` and `when_not_matched_insert_all()`.
     </CodeBlock>
 </CodeGroup>
 
+<Note title="Partial column updates">
+`when_matched_update_all()` only updates the columns present in the incoming data — other columns are left unchanged. For newly inserted rows (unmatched), any missing columns will be `null`.
+</Note>
+
 ### Insert-if-not-exists
 
 This will only insert rows that do not have a match in the target table, thus 
