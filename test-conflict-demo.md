@@ -10,7 +10,7 @@ pip install lancedb
 
 ## Section B: Configuration
 
-Set the connection timeout to 30 seconds.
+Set the connection timeout to 45 seconds.
 
 ## Section C: Usage
 
