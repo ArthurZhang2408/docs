@@ -6,7 +6,7 @@ This is a documentation site for [LanceDB](https://docs.lancedb.com).
 
 - Code examples are primarily in three language SDKs: Python, TypeScript and Rust.
 - Best practices for linting, formatting and code complexity for each respective language apply.
-- Write idiomatic code as far as possible
+- Write idiomatic, well-documented code as far as possible
 
 ## Running Python code
 
@@ -16,5 +16,5 @@ When running Python code, we have to cater to users of both pip and uv.
 - Always attempt to first run *any* Python code via the local virtual environment
   - Look for a local virtual environment (typically in `.venv` or `venv`)
   - Activate the environment, so that you can run multiple code exampes in the same environment
-- Avoid using `uv run` directly, as you have issues running it in your sandbox
+- Avoid using `uv run` directly; it has known issues in sandboxed environments
 - Only fall back to the system `python3` to run code if the above steps don't work
