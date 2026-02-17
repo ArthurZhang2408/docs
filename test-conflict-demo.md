@@ -5,7 +5,7 @@
 Install the package with pip:
 
 ```
-pip install lancedb
+pip install lancedb==0.5.0
 ```
 
 ## Section B: Configuration
